@@ -6,8 +6,8 @@
 
 ## 前置依赖
 
-- Node.js 20+（参考 `.nvmrc`）
-- pnpm 9+
+- Node.js 22+（参考 `.nvmrc`）
+- pnpm 11+（`package.json` 的 `packageManager` 字段为准）
 - Docker Desktop
 - [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started)（`brew install supabase/tap/supabase`）
 

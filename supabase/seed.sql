@@ -1,0 +1,3 @@
+-- Seed data — local + staging only. Production seeds are forbidden (docs/03-environments.md).
+-- Milestone #1 has no business tables yet, so seed is intentionally empty.
+-- Future entries (default models, dev test users) land here.

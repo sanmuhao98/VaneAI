@@ -9,7 +9,7 @@
                                  │  HTTPS
                                  ▼
 ┌────────────────────────────────────────────────────────────────┐
-│              Vercel · Next.js 15 (App Router)                  │
+│              Vercel · Next.js 16 (App Router)                  │
 │  ┌─────────────┐  ┌──────────────┐  ┌──────────────────────┐   │
 │  │ React UI    │  │ Server       │  │ Route Handlers       │   │
 │  │ (RSC + CSR) │  │ Actions      │  │ /api/v1/*            │   │
@@ -38,7 +38,7 @@
 
 | 选型 | 决策 |
 |------|------|
-| 框架 | **Next.js 15** App Router |
+| 框架 | **Next.js 16** App Router |
 | 语言 | **TypeScript**（strict） |
 | 样式 | **Tailwind CSS v4** + **shadcn/ui** |
 | 服务端数据 | **TanStack Query** |

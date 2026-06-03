@@ -5,9 +5,9 @@
 
 ---
 
-## ADR-001 · 前端框架：Next.js 15（App Router）
+## ADR-001 · 前端框架：Next.js 16（App Router）
 
-- **决策**：使用 Next.js 15 App Router + TypeScript + Tailwind + shadcn/ui
+- **决策**：使用 Next.js 16 App Router + TypeScript + Tailwind + shadcn/ui
 - **为什么**：
   - Vercel 一等公民，部署免运维
   - RSC 减少客户端 bundle

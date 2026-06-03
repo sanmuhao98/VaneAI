@@ -6,7 +6,7 @@
 
 ## Summary
 
-搭起 Next.js 15 + Supabase 的最小可登录骨架。**只跑通登录链路**，不接 fal.ai、不写模板、不写复刻。所有约定镜像 `docs/02-06`，落地后下一步进 milestone #2（单次复刻闭环）。
+搭起 Next.js 16 + Supabase 的最小可登录骨架。**只跑通登录链路**，不接 fal.ai、不写模板、不写复刻。所有约定镜像 `docs/02-06`，落地后下一步进 milestone #2（单次复刻闭环）。
 
 ## Patterns to Mirror
 
@@ -24,7 +24,7 @@
 
 | File | Action | Why |
 |---|---|---|
-| `package.json`、`pnpm-lock.yaml`、`tsconfig.json`、`next.config.ts`、`tailwind.config.ts`、`postcss.config.mjs`、`eslint.config.mjs` | CREATE | Next.js 15 + TS + Tailwind 初始化 |
+| `package.json`、`pnpm-lock.yaml`、`tsconfig.json`、`next.config.ts`、`tailwind.config.ts`、`postcss.config.mjs`、`eslint.config.mjs` | CREATE | Next.js 16 + TS + Tailwind 初始化 |
 | `.env.example`、`.env.local`、`.gitignore`、`.nvmrc` | CREATE | 环境变量模板 + 忽略规则 |
 | `lib/env.ts` | CREATE | Zod 校验环境变量 |
 | `lib/supabase/{client,server,admin}.ts` | CREATE | 三个 Supabase 客户端工厂；`admin.ts` 顶部 `import 'server-only'` |
@@ -38,7 +38,7 @@
 
 ## Tasks
 
-### Task 1: 初始化 Next.js 15 项目骨架
+### Task 1: 初始化 Next.js 16 项目骨架
 - **Action**：`pnpm create next-app@latest .`（TS + Tailwind + App Router + ESLint + `@/*` 别名）；`pnpm dlx shadcn@latest init`
 - **Mirror**：`docs/06-directory-structure.md` 路径别名段
 - **Validate**：`pnpm dev` 启动 → `http://localhost:3000` 出默认页
@@ -98,7 +98,7 @@ pnpm tsc --noEmit
 
 | Risk | Likelihood | Mitigation |
 |---|---|---|
-| Supabase Auth `@supabase/ssr` cookie 在 Next 15 App Router 配置坑（middleware vs server client） | Medium | 严格按 Supabase 官方 Next.js SSR 模板；遇问题不自创方案 |
+| Supabase Auth `@supabase/ssr` cookie 在 Next 16 App Router 配置坑（middleware vs server client） | Medium | 严格按 Supabase 官方 Next.js SSR 模板；遇问题不自创方案 |
 | Google OAuth redirect URI 配置错（local vs staging vs prod 三套） | Medium | 三套 URL 全部加到 Google Console 白名单；用环境变量 `NEXT_PUBLIC_SITE_URL` 拼接 |
 | 本地 supabase 端口冲突（54321/54322/54323/54324） | Low | `supabase/config.toml` 里改端口；冲突时 `supabase stop --no-backup` |
 | `.env.local` 误提交 | Low | `.gitignore` 锁死 `.env*` + `!.env.example`；CI 检查 |

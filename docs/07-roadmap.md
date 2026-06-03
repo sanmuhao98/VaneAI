@@ -20,7 +20,7 @@ W7+ 视频方向(V2)
 **目标**：登录后看到空首页；本地 + Vercel preview 都能跑。
 
 任务：
-- [ ] 初始化 Next.js 15 + TS + Tailwind + shadcn
+- [x] 初始化 Next.js 16 + TS + Tailwind + shadcn
 - [ ] 配 `lib/supabase/{client,server,admin}.ts`
 - [ ] `supabase init` + 第一个 migration（`profiles` + trigger）
 - [ ] 邮箱 Magic Link 登录 + Google OAuth

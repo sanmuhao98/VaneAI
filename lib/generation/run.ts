@@ -61,10 +61,11 @@ export async function runGeneration(input: RunGenerationInput): Promise<RunGener
 
   try {
     // 3. mark running
-    await admin
+    const { error: runErr } = await admin
       .from('generation_jobs')
       .update({ status: 'running', started_at: new Date().toISOString() })
       .eq('id', jobId)
+    if (runErr) throw runErr
 
     // 4. provider
     const provider = resolveProvider(model.provider)
@@ -105,7 +106,7 @@ export async function runGeneration(input: RunGenerationInput): Promise<RunGener
     }
 
     // 6. succeeded
-    await admin
+    const { error: doneErr } = await admin
       .from('generation_jobs')
       .update({
         status: 'succeeded',
@@ -113,6 +114,7 @@ export async function runGeneration(input: RunGenerationInput): Promise<RunGener
         finished_at: new Date().toISOString(),
       })
       .eq('id', jobId)
+    if (doneErr) throw doneErr
 
     return {
       jobId,
@@ -120,17 +122,21 @@ export async function runGeneration(input: RunGenerationInput): Promise<RunGener
       assets: assets.map((a) => ({ signedUrl: a.signedUrl, width: a.width, height: a.height })),
     }
   } catch (err) {
-    await admin
-      .from('generation_jobs')
-      .update({
-        status: 'failed',
-        error: {
-          code: err instanceof ProviderError ? 'provider_error' : 'internal_error',
-          message: err instanceof Error ? err.message : String(err),
-        },
-        finished_at: new Date().toISOString(),
-      })
-      .eq('id', jobId)
+    try {
+      await admin
+        .from('generation_jobs')
+        .update({
+          status: 'failed',
+          error: {
+            code: err instanceof ProviderError ? 'provider_error' : 'internal_error',
+            message: err instanceof Error ? err.message : String(err),
+          },
+          finished_at: new Date().toISOString(),
+        })
+        .eq('id', jobId)
+    } catch (updateErr) {
+      console.error('[runGeneration] failed to mark job failed', { jobId, updateErr })
+    }
     throw err
   }
 }

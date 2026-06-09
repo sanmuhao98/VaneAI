@@ -35,3 +35,8 @@ from public.templates
 where is_active;
 
 grant select on public.templates_public to authenticated;
+
+-- Lock the view to read-only for client roles: the view is security definer + auto-updatable,
+-- so default public-schema DML grants would otherwise let authenticated write/delete base rows
+-- through it, bypassing the base-table RLS (ADR-016).
+revoke insert, update, delete, truncate on public.templates_public from anon, authenticated;

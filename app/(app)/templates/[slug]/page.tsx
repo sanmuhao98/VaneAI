@@ -1,12 +1,8 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { clientEnv } from '@/lib/env'
+import { templateImageUrl } from '@/lib/templates/image-url'
 import { ReplicateForm } from './_components/ReplicateForm'
-
-function templateImageUrl(path: string) {
-  return `${clientEnv.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/templates/${path}`
-}
 
 export default async function TemplateDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params

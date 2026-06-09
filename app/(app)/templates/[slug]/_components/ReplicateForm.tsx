@@ -57,7 +57,7 @@ export function ReplicateForm({
         <img src={assets[0].signedUrl} alt="复刻结果" className="w-full rounded-xl border border-neutral-200" />
         <div className="flex gap-3">
           <a
-            href={assets[0].signedUrl}
+            href={`${assets[0].signedUrl}&download`}
             download
             className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:opacity-90"
           >

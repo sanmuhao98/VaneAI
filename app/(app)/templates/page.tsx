@@ -1,15 +1,11 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { clientEnv } from '@/lib/env'
+import { templateImageUrl } from '@/lib/templates/image-url'
 
 const THEMES = [
   { key: 'game_character', label: '游戏角色概念' },
   { key: 'blind_box', label: '盲盒手办风' },
 ] as const
-
-function templateImageUrl(path: string) {
-  return `${clientEnv.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/templates/${path}`
-}
 
 export default async function TemplatesPage({
   searchParams,

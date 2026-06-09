@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { signOut } from '@/app/auth/actions'
 
@@ -13,6 +14,12 @@ export default async function Dashboard() {
       <p className="text-muted-foreground">
         欢迎，<span className="font-medium text-foreground">{user?.email}</span>
       </p>
+      <Link
+        href="/templates"
+        className="self-start rounded-full bg-neutral-900 px-5 py-2 text-sm font-medium text-white hover:opacity-90"
+      >
+        进入模板库
+      </Link>
       <form action={signOut}>
         <button
           type="submit"

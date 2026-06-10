@@ -265,7 +265,12 @@ where is_active;
 
 ## 关键业务流约束
 
-### 创建任务（事务）
+### 创建任务（原子化 · Postgres RPC）
+
+> ⚠️ **实现约束（2026-06-10 补注）**：supabase-js 走 PostgREST，**不支持跨语句事务**——
+> 下面的逻辑不能用 admin client 多次调用拼出来（并发下会双花积分）。W4 落地时必须
+> 实现为单个 Postgres function（如 `create_generation_job(p_user uuid, p_template uuid, p_keyword text)`），
+> 服务端经 `admin.rpc()` 调用，函数体即下述事务：
 
 ```
 BEGIN;

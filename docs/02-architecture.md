@@ -41,13 +41,15 @@
 | 框架 | **Next.js 16** App Router |
 | 语言 | **TypeScript**（strict） |
 | 样式 | **Tailwind CSS v4** + **shadcn/ui** |
-| 服务端数据 | **TanStack Query** |
-| 客户端状态 | **Zustand**（仅轻量 UI 态） |
+| 服务端数据 | **TanStack Query**（⏳ 未引入；W3 轮询是首个落点） |
+| 客户端状态 | **Zustand**（仅轻量 UI 态；⏳ 未引入，按需） |
 | URL 状态 | App Router search params（filters/sort/pagination） |
-| 表单 | **React Hook Form** + **Zod** |
-| 动效 | **Motion**（必要处） |
+| 表单 | **React Hook Form** + **Zod**（⏳ RHF 未引入；当前表单仅一个关键词输入框，原生 state 足够） |
+| 动效 | **Motion**（必要处；⏳ 未引入） |
 | 图标 | **Lucide** |
 | 暗色模式 | 支持，但默认浅色（避免无脑深色） |
+
+> ⏳ = 选型已定但尚未安装。**等首个真实需求出现时再装**，不预装。
 
 **渲染策略**：
 - 落地页、定价页：SSG
@@ -82,7 +84,9 @@
 | Bucket | 可见性 | 用途 |
 |--------|--------|------|
 | `generations` | private | 用户生成图（通过签名 URL 给前端，TTL 1h） |
-| `public-assets` | public | 站点静态图（logo / 示例） |
+| `templates` | public | 编辑上传的模板参考图 / 示范产出 |
+
+> 2026-06-09 修订：原 `public-assets` 方案作废，与 04-data-model 对齐为 `templates` 公开桶（migration 0005）。站点静态图直接放 `public/` 目录。
 
 **签名 URL 流程**：前端请求 `/api/v1/assets/:id/signed-url` → 后端校验所有权 → 返回 1h 有效签名 URL。
 
@@ -126,24 +130,24 @@ inngest/functions/
 为视频铺路的关键设计。**MVP 只实现一个，但接口长成视频也能套**。
 
 ```typescript
-// lib/providers/types.ts
+// lib/providers/types.ts（与实际代码一致）
 type GenerationParams = {
   prompt: string
   negativePrompt?: string
-  model: string
+  model: string // provider 上的 endpoint id
   width?: number
   height?: number
   seed?: number
+  numImages?: number
   // 视频未来加: durationSeconds, fps, sourceImageUrl
 }
 
 interface GenerationProvider {
   readonly name: string
   readonly supportedTypes: ('text_to_image' | 'image_to_video' | 'text_to_video')[]
-
-  submit(params: GenerationParams): Promise<{ providerJobId: string }>
-  poll(providerJobId: string): Promise<ProviderJobStatus>
-  // 或者：onWebhook(payload) → ProviderJobStatus
+  // MVP（ADR-005）：provider 调用在 worker 内同步完成，前端轮询的是 JOB 而非 provider。
+  // submit/poll 拆分（webhook 模式）是视频时代的扩展项。
+  generate(params: GenerationParams): Promise<ProviderResult>
 }
 ```
 

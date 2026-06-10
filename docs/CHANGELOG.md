@@ -1,5 +1,31 @@
 # 文档变更日志
 
+## 2026-06-10 · 设计 review 对账 · 文档修正 + W2 加固
+
+**触发**：全项目设计/文档 review，逐项验证后修复。
+
+**代码修复**：
+- 🐛 **credits_balance 守卫 trigger 失效（实测确认）**：`profiles_block_credits_update` 读 legacy GUC `request.jwt.claim.role`（当前 PostgREST 已不设置），导致 service_role 经 API 改余额也被拦截，W4 ledger 同步会直接爆。migration 0006 改用 `auth.jwt() ->> 'role'`；`scripts/verify-credits-guard.mjs` 三向验证通过（service_role 放行 / 用户改余额拦截 / 用户改昵称放行）。
+- 🐛 **多图存储路径覆盖**：`{userId}/{jobId}/image.{ext}` + upsert 在 `numImages > 1` 时互相覆盖；路径加索引（`lib/storage/paths.ts`，TDD）。
+- ✅ **`DAILY_DEV_CALL_LIMIT` 落地**：此前仅在 env/docs 承诺、代码 0 引用；现 `runGeneration` 对非 mock 调用按当日计数拦截 → 429 `quota_exceeded`。
+- ✅ **job.provider 记录实际执行者**：mock 回落时不再误记 `'fal'`。
+- ✅ **API 对齐 05 的 `{ data, error: { code } }` 封装**（`lib/api/response.ts`）+ 错误码；失败响应带 `details.jobId` 便于排查；`maxDuration = 60`；fal fetch 加 30s 超时（防 job 卡死 running）。
+- ✅ 下载链接改 URL API 构造（原 `${signedUrl}&download` 字符串拼接脆弱）。
+
+**文档修正（修正落原文，不再只记 CHANGELOG）**：
+- `05-api-design.md` **重写**：旧版仍是 06-04 重拆前的"自由 prompt + 模型下拉"请求体（与 ADR-016 直接冲突）；已对齐复刻模型并标注各端点实现状态。
+- `docs/README.md`：口径从"文生图 MVP"更新为复刻定位；索引加"最后核对"列。
+- `02-architecture.md`：存储桶表对齐 04/migration 0005（`templates` 公开桶）；provider 接口片段对齐实际代码（ADR-005 同步 generate）；未引入技术标注 ⏳。
+- `06-directory-structure.md` **重写**：对齐实际目录（旧版含违反 no-free-prompt 的"prompt 输入面板"描述与已废弃的 tailwind.config.ts）。
+- `01-mvp-scope.md`：checkbox 改纯列表——进度勾选唯一维护在 07，消除双轨。
+- `04-data-model.md`：创建任务"事务"补实现约束——PostgREST 无跨语句事务，W4 必须实现为 Postgres RPC。
+
+**修复的工作区事故**：`.claude/`（PRD + plan）曾被误删（未提交的 `D` 状态），已 `git restore` 恢复。⚠️ `.claude/plans/vaneai-m2.plan.md` 被本 CHANGELOG 与 07 引用但**从未入库**，内容已不可恢复——W2 实际产出以 `docs/superpowers/` 下的 plan/spec 为准。
+
+**未变**：技术栈、6 周里程碑节奏、视频方向延后、ADR 全部决策。
+
+---
+
 ## 2026-06-10 · W2 落地 · 同步模板复刻闭环
 
 **产出**：

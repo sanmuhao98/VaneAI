@@ -1,11 +1,15 @@
 # 05 · API 设计
 
+> 2026-06-10 重写：对齐 2026-06-04 产品重拆（爆款一键复刻，ADR-016）。
+> 旧版"自由 prompt + 模型下拉"的请求体设计已作废——**API 不存在任何 prompt 字段**。
+> 状态标记：✅ 已实现 · 🔜 计划（标注里程碑）。
+
 ## 总览
 
 - **风格**：REST + JSON
 - **前缀**：`/api/v1`
 - **鉴权**：Supabase JWT（cookie，server 端 `createServerClient` 读取）
-- **响应封装**：统一 `{ data, error }`
+- **响应封装**：统一 `{ data, error }`，实现在 `lib/api/response.ts`（`apiOk` / `apiFail`）✅
 
 ```ts
 type ApiResponse<T> =
@@ -13,16 +17,16 @@ type ApiResponse<T> =
   | { data: null; error: { code: string; message: string; details?: unknown } }
 ```
 
-## 错误码约定
+## 错误码约定 ✅
 
 | code | HTTP | 含义 |
 |------|------|------|
 | `unauthorized` | 401 | 未登录 |
 | `forbidden` | 403 | 无权限（含 RLS 拦截后转成的） |
-| `not_found` | 404 | 资源不存在 |
+| `not_found` | 404 | 资源不存在（含模板下架） |
 | `validation_error` | 400 | 参数校验失败 |
-| `quota_exceeded` | 429 | 每日配额耗尽 |
-| `insufficient_credits` | 402 | 积分不足 |
+| `quota_exceeded` | 429 | 配额耗尽（当前为 `DAILY_DEV_CALL_LIMIT` 全局守卫；W4 改为用户级配额） |
+| `insufficient_credits` | 402 | 积分不足（🔜 W4） |
 | `provider_error` | 502 | 上游模型服务错误 |
 | `internal_error` | 500 | 兜底 |
 
@@ -30,174 +34,89 @@ type ApiResponse<T> =
 
 ### 生成任务
 
-#### `POST /api/v1/generations`
+#### `POST /api/v1/generations` ✅（W2 同步版，W3 改异步）
 
-创建任务。
+一键复刻：选定模板 + 主体关键词。**没有 prompt / negativePrompt / model / 尺寸字段**——
+prompt 由服务端用模板 `base_prompt` + `keyword` 拼接（ADR-016），模型与尺寸由模板预设。
 
 ```jsonc
 // Request
 {
-  "type": "text_to_image",                 // enum
-  "model": "fal-flux-schnell",             // models.id
-  "input": {
-    "prompt": "a cat in space",
-    "negativePrompt": "blurry",
-    "width": 1024,
-    "height": 1024,
-    "seed": null,                          // null = 随机
-    "numImages": 1
-  }
+  "templateId": "uuid",          // templates_public.id
+  "keyword": "戴帽子的柴犬"       // 1–60 字，唯一的用户输入
 }
 
-// 200 Response
+// 200 Response（W2 同步版：直接返回结果）
 {
   "data": {
-    "job": {
-      "id": "uuid",
-      "status": "pending",
-      "type": "text_to_image",
-      "model": "fal-flux-schnell",
-      "credits_cost": 5,
-      "created_at": "2026-06-02T10:00:00Z"
-    }
-  },
-  "error": null
-}
-```
-
-**实现要点**：
-- Zod 校验 `input`（按 `type` 分支不同 schema）
-- 单事务内：扣积分 + 写 quota + 写 job
-- 提交事务后发 Inngest event `generation/created`
-- 立即返回，**绝不**等 provider
-
----
-
-#### `GET /api/v1/generations`
-
-列表（个人）。
-
-```
-Query:
-  ?status=succeeded|failed|pending|running
-  &type=text_to_image
-  &cursor=<job_id>           // 游标分页
-  &limit=20                  // 默认 20，最大 50
-```
-
-```jsonc
-// Response
-{
-  "data": {
-    "jobs": [ /* job objects with first asset preview */ ],
-    "nextCursor": "uuid_or_null"
-  },
-  "error": null
-}
-```
-
-**性能**：用 `idx_jobs_user_created`，游标分页（不 OFFSET）。
-
----
-
-#### `GET /api/v1/generations/:id`
-
-详情，含 assets 签名 URL。
-
-```jsonc
-{
-  "data": {
-    "job": { /* full job */ },
+    "jobId": "uuid",
     "assets": [
-      {
-        "id": "uuid",
-        "kind": "image",
-        "width": 1024,
-        "height": 1024,
-        "signedUrl": "https://...?token=...",
-        "signedUrlExpiresAt": "2026-06-02T11:00:00Z"
-      }
+      { "signedUrl": "https://...?token=...", "width": 1024, "height": 1024 }
     ]
   },
   "error": null
 }
+
+// 失败示例（job 已创建后失败时带 jobId，便于排查）
+{
+  "data": null,
+  "error": { "code": "provider_error", "message": "生成失败，请重试", "details": { "jobId": "uuid" } }
+}
 ```
+
+**实现要点（现状）**：
+- Zod 校验 body；关键词 trim 后 1–60 字
+- `runGeneration`（`lib/generation/run.ts`）：读模板基表（service_role）→ 拼 prompt → 写 job → 调 provider → 存 storage → 写 assets → 返回签名 URL
+- 同步链路是 W2 临时方案（ADR-005），`maxDuration = 60` 兜底 + provider fetch 30s 超时
+- `DAILY_DEV_CALL_LIMIT`（非生产环境）：当日真实 provider 调用数达上限 → `quota_exceeded` 429
+
+**W3 改造后**：仅写 job（pending）+ 发 Inngest event，立即返回 `{ data: { job } }`；前端轮询详情接口。
 
 ---
 
-#### `DELETE /api/v1/generations/:id`
+#### `GET /api/v1/generations` 🔜 W3
 
-软删（设 `deleted_at = now()`）。
+列表（个人）。游标分页（不 OFFSET），走 `idx_jobs_user_created`。
 
-```jsonc
-{ "data": { "id": "uuid" }, "error": null }
+```
+Query: ?status=…&cursor=<job_id>&limit=20（默认 20，最大 50）
+→ { "data": { "jobs": [...], "nextCursor": "uuid_or_null" }, "error": null }
 ```
 
----
+#### `GET /api/v1/generations/:id` 🔜 W3
 
-#### `POST /api/v1/generations/:id/cancel`
+详情，含 assets 签名 URL（轮询目标，间隔 1.5s，最长 60s）。
+**`input` 中只回 `keyword` 与尺寸——拼接后的 prompt 不落库也绝不下发**（ADR-016）。
 
-取消（仅 pending/running）。
+#### `DELETE /api/v1/generations/:id` 🔜 W3
 
-- 写 `status = canceled`，发 Inngest event `generation/cancel-requested`
-- worker 收到后尽力中止 provider 调用（fal.ai 支持 cancel 接口则调用，否则忽略后续结果）
-- 已扣积分**不**自动回补（取消视为用户主动放弃；如需回补走 admin）
+软删（`deleted_at = now()`）。
 
----
+#### `POST /api/v1/generations/:id/cancel` 🔜 W3
 
-#### `POST /api/v1/generations/:id/retry`
+仅 pending/running。已扣积分不自动回补（取消视为主动放弃）。
 
-用同 `input` 创建新任务（不复用原 job id）。
+#### `POST /api/v1/generations/:id/retry` 🔜 W3
 
-```jsonc
-// Response
-{ "data": { "newJobId": "uuid" }, "error": null }
-```
+同模板 + 同 keyword 创建新任务，返回 `{ "data": { "newJobId": "uuid" } }`。
 
 ---
 
 ### 资产
 
-#### `GET /api/v1/assets/:id/signed-url`
+#### `GET /api/v1/assets/:id/signed-url` 🔜 W3
 
-单独获取签名 URL（前端在 URL 过期时调用）。
-
-```jsonc
-{
-  "data": {
-    "url": "https://...",
-    "expiresAt": "2026-06-02T11:00:00Z"
-  },
-  "error": null
-}
-```
+签名 URL 过期（TTL 1h）后由前端调用续签。后端校验所有权后用 service_role 签发。
 
 ---
 
 ### 用户
 
-#### `GET /api/v1/me`
+#### `GET /api/v1/me` 🔜 W4
 
-```jsonc
-{
-  "data": {
-    "user": {
-      "id": "uuid",
-      "email": "u@example.com",
-      "displayName": "Sen",
-      "avatarUrl": "..."
-    },
-    "credits": {
-      "balance": 95,
-      "todayUsed": 3,
-      "todayLimit": 10
-    }
-  },
-  "error": null
-}
-```
+用户信息 + 积分余额 + 当日配额用量。
 
-#### `GET /api/v1/me/credits`
+#### `GET /api/v1/me/credits` 🔜 W4
 
 积分流水（分页）。
 
@@ -205,44 +124,21 @@ Query:
 
 ### 配置
 
-#### `GET /api/v1/models`
+#### `GET /api/v1/models` 🔜（暂无需求）
 
-模型清单（公开缓存 60s）。
-
-```jsonc
-{
-  "data": {
-    "models": [
-      {
-        "id": "fal-flux-schnell",
-        "displayName": "FLUX Schnell (快)",
-        "type": "text_to_image",
-        "creditsCost": 1,
-        "config": { "maxWidth": 1024, "supportedRatios": ["1:1","3:4","16:9"] }
-      }
-    ]
-  },
-  "error": null
-}
-```
+W2 后模型由模板预设，前端不再选模型；除非后台需要，否则不实现。
 
 ---
 
 ### Webhook
 
-#### `POST /api/v1/webhooks/fal`
+#### `POST /api/v1/webhooks/fal` 🔜 优化项
 
-fal.ai 任务回调（如启用 webhook 模式）。
-
-- 校验 `X-Fal-Signature` header
-- 根据 `provider_job_id` 找 job，更新 status / output / error
-- 不做业务逻辑，仅触发 Inngest event `generation/provider-callback-received`
-
-> MVP 可先用 polling 模式（Inngest function 内 polling）；webhook 是优化项。
+MVP 用 Inngest function 内 polling（ADR-005）；webhook（校验 `X-Fal-Signature`）是 V2 优化。
 
 ---
 
-### Admin（仅白名单用户）
+### Admin（仅白名单用户）🔜 W4
 
 ```
 GET  /api/v1/admin/jobs
@@ -250,39 +146,20 @@ GET  /api/v1/admin/users
 POST /api/v1/admin/users/:id/grant-credits
 ```
 
-权限：检查 `auth.user().email in ADMIN_EMAILS`。
+权限：`auth.user().email in ADMIN_EMAILS`。
 
 ---
 
 ## 限流策略
 
-| 端点 | 限制 |
+| 防线 | 状态 |
 |------|------|
-| `POST /generations` | 配额 + 用户级 30 req/min |
-| 其他读接口 | 用户级 120 req/min |
-| Webhook | 不限（依赖签名校验） |
+| `DAILY_DEV_CALL_LIMIT`：当日真实 provider 调用全局上限（local/preview 设置，生产不设） | ✅ |
+| 用户级每日配额（`daily_quota`，默认 10 次/天） | 🔜 W4 |
+| 用户级请求限流（30 req/min 写、120 req/min 读；Postgres 表 + advisory lock，不引 Redis） | 🔜 W4 |
 
-实现方式：Postgres 表 `rate_limits (key, window_start, count)` + advisory lock。
-
-## 鉴权伪代码
-
-```ts
-// app/api/v1/_lib/auth.ts
-export async function requireUser() {
-  const supabase = createServerClient(...)
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new ApiError('unauthorized', 401)
-  return user
-}
-
-export async function requireAdmin() {
-  const user = await requireUser()
-  if (!ADMIN_EMAILS.includes(user.email)) {
-    throw new ApiError('forbidden', 403)
-  }
-  return user
-}
-```
+> ⚠️ W4 的"扣积分 + 计配额 + 写 job"必须实现为**单个 Postgres function（RPC）**：
+> supabase-js 走 PostgREST，不支持跨语句事务。详见 [04-data-model.md](./04-data-model.md)。
 
 ## 版本策略
 

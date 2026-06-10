@@ -4,8 +4,14 @@ import { toJobView, type JobViewRow } from './job-view'
 
 export type ListedJob = ReturnType<typeof toJobView> & { previewUrl: string | null }
 
+const VALID_STATUSES = new Set(['pending', 'running', 'succeeded', 'failed', 'canceled'])
+
 // Shared by the /library RSC page and GET /api/v1/generations. Cursor = created_at
 // ISO of the last row (keyset pagination on idx_jobs_user_created, no OFFSET).
+//
+// ⚠️ Reads here use the ADMIN client (signed URLs need it anyway), so RLS does NOT
+// apply — every filter RLS would enforce (user_id, deleted_at) must be replicated
+// by hand below. Any new filter/join added to this query must keep that in mind.
 export async function listJobs(opts: {
   userId: string
   cursor?: string
@@ -13,6 +19,10 @@ export async function listJobs(opts: {
   status?: string
 }): Promise<{ jobs: ListedJob[]; nextCursor: string | null }> {
   const limit = Math.min(Math.max(opts.limit ?? 20, 1), 50)
+  // Drop malformed params instead of letting Postgres cast errors 500 the caller
+  // (the RSC page passes raw searchParams; the API route also zod-validates).
+  const status = opts.status && VALID_STATUSES.has(opts.status) ? opts.status : undefined
+  const cursor = opts.cursor && !Number.isNaN(Date.parse(opts.cursor)) ? opts.cursor : undefined
   const admin = createAdminClient()
 
   let q = admin
@@ -22,8 +32,8 @@ export async function listJobs(opts: {
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .limit(limit + 1)
-  if (opts.cursor) q = q.lt('created_at', opts.cursor)
-  if (opts.status) q = q.eq('status', opts.status)
+  if (cursor) q = q.lt('created_at', cursor)
+  if (status) q = q.eq('status', status)
   const { data: rows, error } = await q
   if (error) throw error
 
@@ -47,6 +57,8 @@ export async function listJobs(opts: {
     }
     const entries = [...first.entries()]
     if (entries.length) {
+      // Single-bucket batch signing: today every generated asset lives in
+      // `generations`. If a second bucket ever appears, group entries by bucket.
       const { data: signed } = await admin.storage
         .from(entries[0][1].bucket)
         .createSignedUrls(

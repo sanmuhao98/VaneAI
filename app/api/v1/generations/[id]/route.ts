@@ -1,5 +1,5 @@
 import { apiFail, apiOk } from '@/lib/api/response'
-import { requireUser } from '@/lib/api/auth'
+import { getAuthUser } from '@/lib/api/auth'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { toJobView, type JobViewRow } from '@/lib/generation/job-view'
@@ -7,7 +7,7 @@ import { toJobView, type JobViewRow } from '@/lib/generation/job-view'
 // Poll target (ADR-005). Reads go through the USER client so RLS enforces
 // ownership and the soft-delete filter; signed URLs are issued via admin.
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const user = await requireUser()
+  const user = await getAuthUser()
   if (!user) return apiFail('unauthorized', '请先登录', 401)
   const { id } = await params
 
@@ -54,7 +54,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
 // Soft delete (docs/05): sets deleted_at; storage cleanup is a W4 cron.
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const user = await requireUser()
+  const user = await getAuthUser()
   if (!user) return apiFail('unauthorized', '请先登录', 401)
   const { id } = await params
 

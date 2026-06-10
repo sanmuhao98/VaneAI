@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 
 // Returns the authenticated user or null; callers respond with apiFail('unauthorized').
-export async function requireUser() {
+export async function getAuthUser() {
   const supabase = await createClient()
   const {
     data: { user },

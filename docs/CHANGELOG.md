@@ -1,5 +1,23 @@
 # 文档变更日志
 
+## 2026-06-10 · W3 合并前 code review 修复
+
+**触发**：独立 reviewer 复审 main..feat/w3 全量 diff（无 Critical，6 Important，8 Minor，判定 With fixes）。
+
+**修复（Important 全部 + Minor 高性价比 6 项）**：
+- **worker 终态写入加状态守卫**：succeeded 写入限 `status=running`、failed 写入限 `in(pending,running)`、running 转换 0 行命中即跳过——取消在任意窗口落地都不再被覆盖（W4 退款正确性的地基）
+- **execute-job 整体入 try**：首次 job 读取的瞬时错误不再把任务悬挂在 pending（resolve-don't-throw 设计补全）
+- **job.error 只存脱敏文案**：原始错误进服务端日志——owner 可经 PostgREST 直读 job 行，杜绝 `FAL_API_KEY is not set` 这类信息泄露
+- **worker 改从 `job.provider` 解析**：消除与创建时记录值漂移（dev 限额计数依赖该列）
+- **图片下载加 30s 超时**（与 provider 调用对齐，防 running 悬挂）；fal 传输层错误归类 `provider_error`（原 TimeoutError 误判 internal）
+- **listJobs 入参消毒**：`/library?status=foo`、`?cursor=garbage` 不再 500
+- 轮询容忍连续 2 次瞬时失败；send 失败清理路径自身加 try；`requireUser`→`getAuthUser`（名实相符）；worker 返回值不再携带签名 URL（避免进 Inngest 运行状态留存）
+- **新增集成测试基建**：`RUN_DB_TESTS=1` 门控、跑真实本地 Supabase（execute-job 三条路径：成功/入口跳过/失败脱敏）；vitest alias 掉 `server-only`
+
+**记入 backlog（W4 roadmap 已加）**：stale running/pending 清扫 cron、孤儿 assets 清理并入软删 cron、生产 INNGEST key 部署检查（03 已标必填）。
+
+---
+
 ## 2026-06-10 · W3 落地 · 异步化 + 任务轮询 + 作品库
 
 **产出**（计划：[2026-06-10-w3-async-jobs-library.md](./superpowers/plans/2026-06-10-w3-async-jobs-library.md)）：

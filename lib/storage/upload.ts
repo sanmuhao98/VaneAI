@@ -25,7 +25,9 @@ export async function uploadGenerationImage(args: {
   if (image.bytes) {
     bytes = image.bytes
   } else if (image.url) {
-    const res = await fetch(image.url)
+    // Same hazard as the provider call: an un-timed hang here strands the job in
+    // `running` past the function timeout, where the catch path can't reach it.
+    const res = await fetch(image.url, { signal: AbortSignal.timeout(30_000) })
     if (!res.ok) throw new Error(`image download failed: ${res.status}`)
     bytes = new Uint8Array(await res.arrayBuffer())
   } else {

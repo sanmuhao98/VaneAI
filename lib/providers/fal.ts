@@ -10,19 +10,25 @@ export const falProvider: GenerationProvider = {
     const key = serverEnv.FAL_API_KEY
     if (!key) throw new Error('FAL_API_KEY is not set')
 
-    const res = await fetch(`https://fal.run/${params.model}`, {
-      method: 'POST',
-      // Without a deadline a slow provider rides into the Vercel function timeout
-      // and the job is stranded in `running` — fail fast so the catch path runs.
-      signal: AbortSignal.timeout(30_000),
-      headers: { Authorization: `Key ${key}`, 'content-type': 'application/json' },
-      body: JSON.stringify({
-        prompt: params.prompt,
-        image_size: { width: params.width ?? 1024, height: params.height ?? 1024 },
-        num_images: params.numImages ?? 1,
-        ...(params.seed !== undefined ? { seed: params.seed } : {}),
-      }),
-    })
+    let res: Response
+    try {
+      res = await fetch(`https://fal.run/${params.model}`, {
+        method: 'POST',
+        // Without a deadline a slow provider rides into the Vercel function timeout
+        // and the job is stranded in `running` — fail fast so the catch path runs.
+        signal: AbortSignal.timeout(30_000),
+        headers: { Authorization: `Key ${key}`, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          prompt: params.prompt,
+          image_size: { width: params.width ?? 1024, height: params.height ?? 1024 },
+          num_images: params.numImages ?? 1,
+          ...(params.seed !== undefined ? { seed: params.seed } : {}),
+        }),
+      })
+    } catch (err) {
+      // Timeout / network errors are provider failures (502-class), not internal bugs.
+      return { status: 'failed', images: [], raw: { transport: err instanceof Error ? err.name : String(err) } }
+    }
     if (!res.ok) {
       const text = await res.text()
       return { status: 'failed', images: [], raw: { status: res.status, body: text } }

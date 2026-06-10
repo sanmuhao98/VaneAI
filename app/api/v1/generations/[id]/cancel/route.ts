@@ -1,5 +1,5 @@
 import { apiFail, apiOk } from '@/lib/api/response'
-import { requireUser } from '@/lib/api/auth'
+import { getAuthUser } from '@/lib/api/auth'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { canCancel, type JobStatus } from '@/lib/generation/status'
@@ -7,7 +7,7 @@ import { canCancel, type JobStatus } from '@/lib/generation/status'
 // Best-effort cancel (docs/05): only pending/running. Credits are NOT auto-refunded.
 // The worker checks for `canceled` before starting and before writing results.
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const user = await requireUser()
+  const user = await getAuthUser()
   if (!user) return apiFail('unauthorized', '请先登录', 401)
   const { id } = await params
 

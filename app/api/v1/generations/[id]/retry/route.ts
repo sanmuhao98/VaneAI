@@ -1,5 +1,5 @@
 import { apiFail, apiOk } from '@/lib/api/response'
-import { requireUser } from '@/lib/api/auth'
+import { getAuthUser } from '@/lib/api/auth'
 import { createClient } from '@/lib/supabase/server'
 import { generationCreated, inngest } from '@/inngest/client'
 import { createGenerationJob } from '@/lib/generation/create-job'
@@ -8,7 +8,7 @@ import { canRetry, type JobStatus } from '@/lib/generation/status'
 
 // Retry = a NEW job with the same template + keyword (docs/05). Original is untouched.
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const user = await requireUser()
+  const user = await getAuthUser()
   if (!user) return apiFail('unauthorized', '请先登录', 401)
   const { id } = await params
 

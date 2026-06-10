@@ -100,8 +100,10 @@ supabase db reset    # 干净重跑
 | `SUPABASE_SERVICE_ROLE_KEY` | local | staging | prod（**仅 server 端**） |
 | `FAL_API_KEY` | dev key | dev key | prod key |
 | `INNGEST_DEV` | `1`（连本地 dev server） | (不设) | (不设) |
-| `INNGEST_EVENT_KEY` | (不设，dev 模式免 key) | staging | prod |
-| `INNGEST_SIGNING_KEY` | (不设，dev 模式免 key) | staging | prod |
+| `INNGEST_EVENT_KEY` | (不设，dev 模式免 key) | staging（**必填**） | prod（**必填**） |
+| `INNGEST_SIGNING_KEY` | (不设，dev 模式免 key) | staging（**必填**） | prod（**必填**） |
+
+> ⚠️ 线上 `/api/inngest` 的请求校验依赖 `INNGEST_SIGNING_KEY`——`lib/env.ts` 里这两个 key 是 optional（迁就本地 dev 模式），部署 checklist 必须人工确认已配置，缺了不会在启动时报错。
 | `SENTRY_DSN` | (空) | staging dsn | prod dsn |
 | `ADMIN_EMAILS` | dev list | dev list | 真实白名单 |
 | `DAILY_DEV_CALL_LIMIT` | 20 | 50 | (不设) |

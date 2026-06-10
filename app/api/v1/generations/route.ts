@@ -1,7 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { z } from 'zod'
 import { apiFail, apiOk } from '@/lib/api/response'
-import { requireUser } from '@/lib/api/auth'
+import { getAuthUser } from '@/lib/api/auth'
 import { generationCreated, inngest } from '@/inngest/client'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createGenerationJob } from '@/lib/generation/create-job'
@@ -16,7 +16,7 @@ const listQuerySchema = z.object({
 
 // Personal job list — cursor pagination (docs/05).
 export async function GET(request: NextRequest) {
-  const user = await requireUser()
+  const user = await getAuthUser()
   if (!user) return apiFail('unauthorized', '请先登录', 401)
 
   const url = new URL(request.url)
@@ -41,7 +41,7 @@ const bodySchema = z.object({
 // Async pipeline (ADR-002/005): write the pending job + emit the event, return
 // immediately. The Inngest worker calls the provider; the client polls the job.
 export async function POST(request: NextRequest) {
-  const user = await requireUser()
+  const user = await getAuthUser()
   if (!user) return apiFail('unauthorized', '请先登录', 401)
 
   let json: unknown
@@ -70,14 +70,18 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     // Without the event the job would be stranded in pending — mark it failed.
     console.error('[generations] inngest.send failed', { jobId, err })
-    await createAdminClient()
-      .from('generation_jobs')
-      .update({
-        status: 'failed',
-        error: { code: 'internal_error', message: 'event dispatch failed' },
-        finished_at: new Date().toISOString(),
-      })
-      .eq('id', jobId)
+    try {
+      await createAdminClient()
+        .from('generation_jobs')
+        .update({
+          status: 'failed',
+          error: { code: 'internal_error', message: 'event dispatch failed' },
+          finished_at: new Date().toISOString(),
+        })
+        .eq('id', jobId)
+    } catch (updateErr) {
+      console.error('[generations] failed to mark stranded job failed', { jobId, updateErr })
+    }
     return apiFail('internal_error', '创建任务失败，请重试', 500, { jobId })
   }
 

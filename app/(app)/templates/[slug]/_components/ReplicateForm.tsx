@@ -53,12 +53,23 @@ export function ReplicateForm({
       jobIdRef.current = jobId
 
       const deadline = Date.now() + POLL_TIMEOUT_MS
+      let consecutiveFailures = 0
       while (Date.now() < deadline) {
         await sleep(POLL_INTERVAL_MS)
         if (canceledRef.current) return
-        const pollRes = await fetch(`/api/v1/generations/${jobId}`)
-        const poll = (await pollRes.json()) as Envelope<DetailData>
-        if (!pollRes.ok || !poll.data) throw new Error(poll.error?.message ?? '查询任务失败，请重试')
+        // Tolerate transient poll failures — one network blip out of ~40 polls
+        // must not report a generation as failed while the job succeeds server-side.
+        let poll: Envelope<DetailData>
+        try {
+          const pollRes = await fetch(`/api/v1/generations/${jobId}`)
+          poll = (await pollRes.json()) as Envelope<DetailData>
+          if (!pollRes.ok || !poll.data) throw new Error(poll.error?.message ?? '查询任务失败，请重试')
+          consecutiveFailures = 0
+        } catch (pollErr) {
+          consecutiveFailures += 1
+          if (consecutiveFailures >= 3) throw pollErr
+          continue
+        }
         const { job, assets: doneAssets } = poll.data
         if (job.status === 'succeeded') {
           setAssets(doneAssets)

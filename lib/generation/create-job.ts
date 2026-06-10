@@ -3,10 +3,17 @@ import { serverEnv } from '@/lib/env'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveProvider } from '@/lib/providers'
 import { devCallLimitExceeded } from './dev-limit'
-import { DevCallLimitError, TemplateNotFoundError } from './errors'
+import {
+  DevCallLimitError,
+  InsufficientCreditsError,
+  QuotaExceededError,
+  TemplateNotFoundError,
+} from './errors'
 
-// Validates template/model, enforces the dev call guard, and inserts a pending job.
-// The provider is NOT called here — the Inngest worker picks the job up (ADR-002/005).
+// Creates a pending job ATOMICALLY via the create_generation_job Postgres RPC:
+// quota check + balance debit + ledger row + job insert are one transaction with
+// FOR UPDATE locks (docs/04 — PostgREST has no multi-statement transactions).
+// The provider is NOT called here — the Inngest worker picks the job up.
 export async function createGenerationJob(input: {
   userId: string
   templateId: string
@@ -14,9 +21,11 @@ export async function createGenerationJob(input: {
 }): Promise<{ jobId: string }> {
   const admin = createAdminClient()
 
+  // Pre-read template→model only to resolve the provider that will actually run
+  // (recorded on the job row; mock fallback must not be billed as 'fal').
   const { data: template, error: tErr } = await admin
     .from('templates')
-    .select('id, model_id, recommended_width, recommended_height, credits_cost, is_active')
+    .select('id, model_id, is_active')
     .eq('id', input.templateId)
     .maybeSingle()
   if (tErr) throw tErr
@@ -24,12 +33,11 @@ export async function createGenerationJob(input: {
 
   const { data: model, error: mErr } = await admin
     .from('models')
-    .select('id, provider, type')
+    .select('provider')
     .eq('id', template.model_id)
     .single()
   if (mErr) throw mErr
 
-  // Resolve up-front so the job row records the provider that will actually run.
   const provider = resolveProvider(model.provider)
 
   // Dev guardrail (docs/03): cap real provider calls per UTC day. Mock calls are free.
@@ -46,22 +54,17 @@ export async function createGenerationJob(input: {
     }
   }
 
-  const { data: job, error: jErr } = await admin
-    .from('generation_jobs')
-    .insert({
-      user_id: input.userId,
-      type: model.type,
-      status: 'pending',
-      template_id: template.id,
-      provider: provider.name,
-      model: model.id,
-      // ADR-016: the assembled prompt is never persisted — the worker re-assembles
-      // it from base_prompt + keyword (jobs are owner-readable via RLS).
-      input: { keyword: input.keyword, width: template.recommended_width, height: template.recommended_height },
-      credits_cost: template.credits_cost,
-    })
-    .select('id')
-    .single()
-  if (jErr) throw jErr
-  return { jobId: job.id as string }
+  const { data: jobId, error: rpcErr } = await admin.rpc('create_generation_job', {
+    p_user_id: input.userId,
+    p_template_id: input.templateId,
+    p_keyword: input.keyword,
+    p_provider: provider.name,
+  })
+  if (rpcErr) {
+    if (rpcErr.message.includes('quota_exceeded')) throw new QuotaExceededError()
+    if (rpcErr.message.includes('insufficient_credits')) throw new InsufficientCreditsError()
+    if (rpcErr.message.includes('template_not_found')) throw new TemplateNotFoundError(input.templateId)
+    throw rpcErr
+  }
+  return { jobId: jobId as string }
 }

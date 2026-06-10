@@ -14,6 +14,20 @@ export class ProviderError extends Error {
   }
 }
 
+export class QuotaExceededError extends Error {
+  constructor() {
+    super('daily quota exceeded')
+    this.name = 'QuotaExceededError'
+  }
+}
+
+export class InsufficientCreditsError extends Error {
+  constructor() {
+    super('insufficient credits')
+    this.name = 'InsufficientCreditsError'
+  }
+}
+
 export class DevCallLimitError extends Error {
   limit: number
   constructor(limit: number) {

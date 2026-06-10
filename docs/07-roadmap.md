@@ -93,6 +93,7 @@ W7+ 视频方向(V2)
 **目标**：5–10 个真实用户用一周。
 
 任务：
+- [x] 首批 32 个模板铺设（双主题各 16，素材全部 Seedream 生成；目录 `scripts/template-catalog.mjs`，重生成 `scripts/generate-template-assets.mjs`）
 - [ ] 设计走查：`/create` 与 `/library` 不能像默认模板（参考 design-quality 规范）
 - [ ] 落地页（`(marketing)/page.tsx`）
 - [ ] 服务条款 / 隐私政策静态页

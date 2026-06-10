@@ -6,7 +6,7 @@
 -- config.watermark：false 关闭右下角"AI生成"水印（合规要求变化时改回 true）。
 insert into public.models (id, display_name, type, provider, provider_model, credits_cost, config, sort_order)
 values
-  ('doubao-seedream-5-lite', 'Doubao Seedream 5.0 Lite', 'text_to_image', 'seedream', 'doubao-seedream-5-0-lite', 1,
+  ('doubao-seedream-5-lite', 'Doubao Seedream 5.0 Lite', 'text_to_image', 'seedream', 'doubao-seedream-5-0-lite-260128', 1,
    '{"watermark": true}', 0),
   ('fal-flux-schnell', 'FLUX schnell（备选）', 'text_to_image', 'fal', 'fal-ai/flux/schnell', 1,
    '{"default_width":1024,"default_height":1024}', 10)

@@ -22,15 +22,3 @@ export class DevCallLimitError extends Error {
     this.limit = limit
   }
 }
-
-// Thrown once a job row exists, so callers can surface the jobId for support/debugging.
-export class GenerationFailedError extends Error {
-  jobId: string
-  cause: unknown
-  constructor(jobId: string, cause: unknown) {
-    super(cause instanceof Error ? cause.message : String(cause))
-    this.name = 'GenerationFailedError'
-    this.jobId = jobId
-    this.cause = cause
-  }
-}

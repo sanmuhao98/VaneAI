@@ -1,13 +1,11 @@
 import { type NextRequest } from 'next/server'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase/server'
 import { apiFail, apiOk } from '@/lib/api/response'
-import { runGeneration } from '@/lib/generation/run'
-import { DevCallLimitError, GenerationFailedError, ProviderError, TemplateNotFoundError } from '@/lib/generation/errors'
-
-// Sync pipeline (W2, ADR-005 interim): the provider call happens inside this
-// handler, so give it the full minute until W3 moves it into Inngest.
-export const maxDuration = 60
+import { requireUser } from '@/lib/api/auth'
+import { generationCreated, inngest } from '@/inngest/client'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { createGenerationJob } from '@/lib/generation/create-job'
+import { DevCallLimitError, TemplateNotFoundError } from '@/lib/generation/errors'
 
 // Only the subject keyword is accepted — NO prompt field exists in the schema (ADR-016).
 const bodySchema = z.object({
@@ -15,14 +13,11 @@ const bodySchema = z.object({
   keyword: z.string().trim().min(1, '请输入主体关键词').max(60, '关键词不能超过 60 字'),
 })
 
+// Async pipeline (ADR-002/005): write the pending job + emit the event, return
+// immediately. The Inngest worker calls the provider; the client polls the job.
 export async function POST(request: NextRequest) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return apiFail('unauthorized', '请先登录', 401)
-  }
+  const user = await requireUser()
+  if (!user) return apiFail('unauthorized', '请先登录', 401)
 
   let json: unknown
   try {
@@ -30,36 +25,36 @@ export async function POST(request: NextRequest) {
   } catch {
     return apiFail('validation_error', '请求格式错误', 400)
   }
-
   const parsed = bodySchema.safeParse(json)
   if (!parsed.success) {
     return apiFail('validation_error', parsed.error.issues[0]?.message ?? '参数无效', 400)
   }
 
+  let jobId: string
   try {
-    const result = await runGeneration({
-      userId: user.id,
-      templateId: parsed.data.templateId,
-      keyword: parsed.data.keyword,
-    })
-    return apiOk({ jobId: result.jobId, assets: result.assets })
+    ;({ jobId } = await createGenerationJob({ userId: user.id, ...parsed.data }))
   } catch (err) {
-    if (err instanceof TemplateNotFoundError) {
-      return apiFail('not_found', '模板不存在或已下架', 404)
-    }
-    if (err instanceof DevCallLimitError) {
-      return apiFail('quota_exceeded', '今日生成次数已达上限，请明天再试', 429)
-    }
-    console.error('[generations] runGeneration failed', err)
-    if (err instanceof GenerationFailedError) {
-      const isProvider = err.cause instanceof ProviderError
-      return apiFail(
-        isProvider ? 'provider_error' : 'internal_error',
-        '生成失败，请重试',
-        isProvider ? 502 : 500,
-        { jobId: err.jobId },
-      )
-    }
-    return apiFail('internal_error', '生成失败，请重试', 500)
+    if (err instanceof TemplateNotFoundError) return apiFail('not_found', '模板不存在或已下架', 404)
+    if (err instanceof DevCallLimitError) return apiFail('quota_exceeded', '今日生成次数已达上限，请明天再试', 429)
+    console.error('[generations] createGenerationJob failed', err)
+    return apiFail('internal_error', '创建任务失败，请重试', 500)
   }
+
+  try {
+    await inngest.send(generationCreated.create({ jobId }))
+  } catch (err) {
+    // Without the event the job would be stranded in pending — mark it failed.
+    console.error('[generations] inngest.send failed', { jobId, err })
+    await createAdminClient()
+      .from('generation_jobs')
+      .update({
+        status: 'failed',
+        error: { code: 'internal_error', message: 'event dispatch failed' },
+        finished_at: new Date().toISOString(),
+      })
+      .eq('id', jobId)
+    return apiFail('internal_error', '创建任务失败，请重试', 500, { jobId })
+  }
+
+  return apiOk({ job: { id: jobId, status: 'pending' } }, 202)
 }

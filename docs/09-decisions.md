@@ -192,6 +192,19 @@
 
 ---
 
+## ADR-017 · 主图片 Provider 切换：fal.ai → 火山方舟豆包 Seedream
+
+- **决策**：主 provider 改为火山方舟 Seedream（`doubao-seedream-5.0-lite`，同步端点 `/api/v3/images/generations`）；fal.ai 降为备选，Provider 抽象层不变。Supersedes ADR-004 的"主 provider"部分。
+- **为什么**：
+  - 产品面向中文用户与中文提示词场景，Seedream 对中文 prompt 原生支持
+  - 国内访问稳定性与合规（火山引擎境内服务）
+  - `image` 参数原生支持参考图输入（2–14 张），为 V2"上传参考图复刻"铺路
+- **关键约束**：像素模式 size 总像素下限 2560×1440——模板推荐尺寸对齐官方 2K 档（`mapSeedreamSize` 按宽高比就近映射）；返回 URL 24h 有效（管线即时转存 Storage，无影响）；`watermark` 默认 true（"AI生成"角标），经 `models.config.watermark` 可配——**关闭前确认 AI 生成内容标识的合规要求**。
+- **替代**：继续 fal.ai（海外访问、计费美元）；Replicate（同前）。
+- **回滚**：models 表把模板的 `model_id` 切回 `fal-flux-schnell` 即可，零代码改动。
+
+---
+
 ## 决策记录格式（新增 ADR 时复用）
 
 ```markdown

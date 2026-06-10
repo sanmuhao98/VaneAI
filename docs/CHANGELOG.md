@@ -1,5 +1,21 @@
 # 文档变更日志
 
+## 2026-06-10 · ADR-017 · 主图片 Provider 切换为火山方舟豆包 Seedream
+
+**触发**：产品决策——图片生成先用豆包 Seedream（中文场景 + 国内稳定 + V2 参考图能力）；密钥稍后提供。
+
+**产出**：
+- ✅ `lib/providers/seedream.ts`：方舟同步端点（Bearer 鉴权，60s 超时，传输错误归 provider_error 路径）
+- ✅ `mapSeedreamSize` 纯函数（TDD）：宽高比 → 官方 2K 推荐档映射（像素模式总像素下限 2560×1440，原 1024 档不可用）
+- ✅ `resolveProvider` 加 seedream 分支：`ARK_API_KEY` 未配置回落 mock（与 fal 同机制，填 key 即切真）
+- ✅ `models.config.watermark` 经 GenerationParams 透传（默认 true——"AI生成"角标；关闭前确认合规）
+- ✅ seed + 本地库：新增 `doubao-seedream-5-lite` 模型行；双模板切换至该模型，推荐尺寸 1024→2048
+- ⚠️ `provider_model` 暂填 `doubao-seedream-5-0-lite`——开通方舟模型服务后以控制台实际 Model ID/Endpoint ID 为准（改 models 行即可，零代码）
+
+**未变**：Provider 抽象层接口、ADR-016 隔离纪律、fal 代码保留为备选。
+
+---
+
 ## 2026-06-10 · W4 收尾 · Admin 后台
 
 **产出**：

@@ -3,11 +3,12 @@ export type GenerationType = 'text_to_image' | 'image_to_video' | 'text_to_video
 export type GenerationParams = {
   prompt: string
   negativePrompt?: string
-  model: string // provider_model id, e.g. 'fal-ai/flux/schnell'
+  model: string // provider_model id, e.g. 'doubao-seedream-5-0-lite' / 'fal-ai/flux/schnell'
   width?: number
   height?: number
   seed?: number
   numImages?: number
+  watermark?: boolean // seedream: AI-label watermark; sourced from models.config
   // video future: durationSeconds, fps, sourceImageUrl
 }
 

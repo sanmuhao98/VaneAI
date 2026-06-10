@@ -9,6 +9,7 @@ const serverSchema = z.object({
 
   NEXT_PUBLIC_SITE_URL: z.string().url(),
 
+  ARK_API_KEY: z.string().min(1).optional(),
   FAL_API_KEY: z.string().min(1).optional(),
   INNGEST_EVENT_KEY: z.string().min(1).optional(),
   INNGEST_SIGNING_KEY: z.string().min(1).optional(),

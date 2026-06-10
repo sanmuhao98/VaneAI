@@ -44,10 +44,11 @@ export async function executeGenerationJob(jobId: string): Promise<ExecuteResult
 
     const { data: model, error: mErr } = await admin
       .from('models')
-      .select('provider_model')
+      .select('provider_model, config')
       .eq('id', template.model_id)
       .single()
     if (mErr) throw mErr
+    const modelConfig = (model.config ?? {}) as { watermark?: boolean }
 
     const input = job.input as { keyword: string; width: number; height: number }
     // ADR-016: prompt is re-assembled here, never persisted on the job row.
@@ -75,6 +76,7 @@ export async function executeGenerationJob(jobId: string): Promise<ExecuteResult
       width: input.width,
       height: input.height,
       numImages: 1,
+      watermark: modelConfig.watermark,
     })
     if (result.status !== 'succeeded' || result.images.length === 0) {
       throw new ProviderError('provider returned no images', result.raw)

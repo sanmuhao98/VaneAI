@@ -98,7 +98,8 @@ supabase db reset    # 干净重跑
 | `NEXT_PUBLIC_SUPABASE_URL` | localhost | staging url | prod url |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | local anon | staging anon | prod anon |
 | `SUPABASE_SERVICE_ROLE_KEY` | local | staging | prod（**仅 server 端**） |
-| `FAL_API_KEY` | dev key | dev key | prod key |
+| `ARK_API_KEY`（主 provider，ADR-017） | dev key | dev key | prod key |
+| `FAL_API_KEY`（备选 provider） | (可不设) | (可不设) | (可不设) |
 | `INNGEST_DEV` | `1`（连本地 dev server） | (不设) | (不设) |
 | `INNGEST_EVENT_KEY` | (不设，dev 模式免 key) | staging（**必填**） | prod（**必填**） |
 | `INNGEST_SIGNING_KEY` | (不设，dev 模式免 key) | staging（**必填**） | prod（**必填**） |

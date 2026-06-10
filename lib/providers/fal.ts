@@ -12,6 +12,9 @@ export const falProvider: GenerationProvider = {
 
     const res = await fetch(`https://fal.run/${params.model}`, {
       method: 'POST',
+      // Without a deadline a slow provider rides into the Vercel function timeout
+      // and the job is stranded in `running` — fail fast so the catch path runs.
+      signal: AbortSignal.timeout(30_000),
       headers: { Authorization: `Key ${key}`, 'content-type': 'application/json' },
       body: JSON.stringify({
         prompt: params.prompt,

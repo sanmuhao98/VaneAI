@@ -1,9 +1,11 @@
 import 'server-only'
+import { serverEnv } from '@/lib/env'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveProvider } from '@/lib/providers'
 import { createSignedUrl, uploadGenerationImage } from '@/lib/storage/upload'
 import { assemblePrompt } from './prompt'
-import { ProviderError, TemplateNotFoundError } from './errors'
+import { devCallLimitExceeded } from './dev-limit'
+import { DevCallLimitError, GenerationFailedError, ProviderError, TemplateNotFoundError } from './errors'
 
 export type RunGenerationInput = { userId: string; templateId: string; keyword: string }
 export type RunGenerationResult = {
@@ -36,7 +38,25 @@ export async function runGeneration(input: RunGenerationInput): Promise<RunGener
 
   const prompt = assemblePrompt(template.base_prompt, input.keyword)
 
-  // 2. Insert job (pending). input.prompt is stored but NEVER returned to the client.
+  // Resolve BEFORE inserting the job so the row records the provider that actually
+  // ran (mock fallback used to be mislabeled as 'fal' here).
+  const provider = resolveProvider(model.provider)
+
+  // Dev guardrail (docs/03): cap real provider calls per UTC day. Mock calls are free.
+  if (provider.name !== 'mock' && serverEnv.DAILY_DEV_CALL_LIMIT !== undefined) {
+    const startOfDayUtc = `${new Date().toISOString().slice(0, 10)}T00:00:00Z`
+    const { count, error: cntErr } = await admin
+      .from('generation_jobs')
+      .select('id', { count: 'exact', head: true })
+      .neq('provider', 'mock')
+      .gte('created_at', startOfDayUtc)
+    if (cntErr) throw cntErr
+    if (devCallLimitExceeded(count ?? 0, serverEnv.DAILY_DEV_CALL_LIMIT)) {
+      throw new DevCallLimitError(serverEnv.DAILY_DEV_CALL_LIMIT)
+    }
+  }
+
+  // 2. Insert job (pending).
   const { data: job, error: jErr } = await admin
     .from('generation_jobs')
     .insert({
@@ -44,7 +64,7 @@ export async function runGeneration(input: RunGenerationInput): Promise<RunGener
       type: model.type,
       status: 'pending',
       template_id: template.id,
-      provider: model.provider,
+      provider: provider.name,
       model: model.id,
       // ADR-016: do NOT persist the assembled prompt (jobs are owner-readable via RLS);
       // it is reconstructable server-side from base_prompt + keyword when needed.
@@ -69,7 +89,6 @@ export async function runGeneration(input: RunGenerationInput): Promise<RunGener
     if (runErr) throw runErr
 
     // 4. provider
-    const provider = resolveProvider(model.provider)
     const result = await provider.generate({
       prompt,
       negativePrompt: template.negative_prompt ?? undefined,
@@ -84,8 +103,8 @@ export async function runGeneration(input: RunGenerationInput): Promise<RunGener
 
     // 5. upload + assets
     const assets: { signedUrl: string; width: number; height: number; assetId: string }[] = []
-    for (const img of result.images) {
-      const uploaded = await uploadGenerationImage({ userId: input.userId, jobId, image: img })
+    for (const [i, img] of result.images.entries()) {
+      const uploaded = await uploadGenerationImage({ userId: input.userId, jobId, index: i, image: img })
       const { data: asset, error: aErr } = await admin
         .from('assets')
         .insert({
@@ -138,6 +157,6 @@ export async function runGeneration(input: RunGenerationInput): Promise<RunGener
     } catch (updateErr) {
       console.error('[runGeneration] failed to mark job failed', { jobId, updateErr })
     }
-    throw err
+    throw new GenerationFailedError(jobId, err)
   }
 }

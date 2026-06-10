@@ -1,15 +1,9 @@
 import 'server-only'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { buildGenerationStoragePath } from '@/lib/storage/paths'
 import type { ProviderImage } from '@/lib/providers/types'
 
 const GENERATIONS_BUCKET = 'generations'
-
-function extFromMime(mime: string): string {
-  if (mime.includes('svg')) return 'svg'
-  if (mime.includes('png')) return 'png'
-  if (mime.includes('webp')) return 'webp'
-  return 'jpg'
-}
 
 export type UploadedImage = {
   bucket: string
@@ -23,9 +17,10 @@ export type UploadedImage = {
 export async function uploadGenerationImage(args: {
   userId: string
   jobId: string
+  index: number
   image: ProviderImage
 }): Promise<UploadedImage> {
-  const { userId, jobId, image } = args
+  const { userId, jobId, index, image } = args
   let bytes: Uint8Array
   if (image.bytes) {
     bytes = image.bytes
@@ -37,8 +32,7 @@ export async function uploadGenerationImage(args: {
     throw new Error('image has neither bytes nor url')
   }
 
-  const ext = extFromMime(image.contentType)
-  const storagePath = `${userId}/${jobId}/image.${ext}`
+  const storagePath = buildGenerationStoragePath(userId, jobId, index, image.contentType)
   const admin = createAdminClient()
   const { error } = await admin.storage
     .from(GENERATIONS_BUCKET)

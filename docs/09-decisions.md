@@ -181,6 +181,17 @@
 
 ---
 
+## ADR-016 · 模板 base_prompt 服务端隔离（安全视图模式）
+
+- **决策**：`templates` 基表含 `base_prompt` / `negative_prompt` / 模型内部参数，RLS 仅 `service_role` 可读写；前端只读 `templates_public` 视图（安全列子集，**不含 base_prompt**），授予 `authenticated` select。最终 prompt = 服务端用 admin client 读 base_prompt 内插用户 `keyword` 后拼接，**永不下发前端**。
+- **为什么**：
+  - 产品灵魂是"用户不需要懂 prompt"（PRD Out-of-scope 第 1 条 + 记忆 `vaneai-no-free-prompt`）。把模板 prompt 暴露给前端 = 变相提供 prompt，破坏定位。
+  - 数据库层兜底，前端代码 bug 不会泄露 base_prompt（与 ADR-008 同源思路）。
+- **替代**：列级权限（Postgres column privileges + RLS，复杂易错）；前端拿全表但代码层过滤（一旦绕过即泄露，不可接受）。
+- **回滚**：N/A（这是产品纪律的技术兜底，不回滚）。
+
+---
+
 ## 决策记录格式（新增 ADR 时复用）
 
 ```markdown

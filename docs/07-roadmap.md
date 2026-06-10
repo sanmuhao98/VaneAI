@@ -31,21 +31,27 @@ W7+ 视频方向(V2)
 
 **验收**：本地登录 → 进入 `/create` 空页面；Vercel preview 同效果。
 
-## W2 · 文生图单次闭环
+## W2 · 单次复刻闭环（同步版·临时）
 
-**目标**：调一次 fal.ai，出一张图，存 Supabase Storage，前端能看到。
+> ⚠️ 2026-06-04 重拆：旧版（"prompt 输入 + 模型下拉"）随产品转向作废。详见 [.claude/plans/vaneai-m2.plan.md](../.claude/plans/vaneai-m2.plan.md) 与 [CHANGELOG.md](./CHANGELOG.md)。
+> **核心纪律**：前端无任何 prompt 输入面板；用户唯一输入 = 主体关键词。`base_prompt` 编辑预置、仅服务端可读（ADR-016）。
+
+**目标**：用户选 1 个模板、输入主体关键词，调一次 fal.ai 出一张图，存 Supabase Storage，前端能看到。
 
 任务：
-- [ ] `lib/providers/types.ts` + `lib/providers/fal.ts` + `index.ts`
-- [ ] `models` 表 + seed（接入 `flux-schnell`）
-- [ ] `generation_jobs` + `assets` migration（含 RLS）
-- [ ] 简版 `/create` 页：prompt 输入 + 模型下拉 + 生成按钮
-- [ ] **同步**版 API（仅本周临时，下周改异步）：调 fal → 存 storage → 写 job/assets → 返回
-- [ ] `lib/storage/upload.ts`：从 provider URL 下载到 Supabase Storage
-- [ ] 签名 URL 接口
-- [ ] 前端展示返回图
+- [x] `lib/providers/types.ts` + `lib/providers/fal.ts` + `index.ts`
+- [x] `models` 表 + seed（接入 `flux-schnell`）
+- [x] `templates` 表 + `templates_public` 安全视图（base_prompt 服务端隔离）+ 2–3 条手填 seed
+- [x] `generation_jobs`（含 `template_id`）+ `assets` migration（含 RLS）
+- [x] `(app)/templates` 列表 + `[slug]` 详情（参考图 + 示范产出 + 一键复刻入口 + 主题筛选）
+- [x] 一键复刻 UI：**仅主体关键词单行框（≤60 字），不暴露 prompt**
+- [x] **同步**版 API（仅本周临时，下周改异步）：服务端拼 prompt → 调 fal → 存 storage → 写 job/assets → 返回签名 URL
+- [x] `lib/storage/upload.ts`：从 provider URL 下载到 Supabase Storage + 签名 URL
+- [x] 结果展示 + 下载 + 60s 重试计时埋点
 
-**验收**：从 prompt 到看到图全链路通；图持久化在 Supabase Storage。
+不做（推迟）：异步/Inngest（W3）、积分扣减/配额（W4）、作品库列表/删除/取消/重试（W3）、admin 后台（W4）、30–50 条模板铺设（W5）。
+
+**验收**：登录用户选模板 → 填关键词 → 看到图 → 下载全链路通；图持久化在 Supabase Storage；前端响应/DOM 搜不到 base_prompt。
 
 ## W3 · 异步化 + 任务表 + 作品库
 

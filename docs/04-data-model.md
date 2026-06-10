@@ -70,11 +70,12 @@ create table public.generation_jobs (
   type             generation_type not null,
   status           job_status      not null default 'pending',
 
+  template_id      uuid references public.templates(id),  -- 复刻所用模板（自由生成时为空）
   provider         text not null,                 -- 'fal' / 'replicate'
   provider_job_id  text,                          -- 第三方 job id
   model            text not null,                 -- 'flux-pro' 等
 
-  input            jsonb not null,                -- 全部输入参数
+  input            jsonb not null,                -- 全部输入参数（复刻时含 keyword；拼接后的 prompt 也落此，base_prompt 不单独回前端）
   output           jsonb,                         -- { assets: [...] }
   error            jsonb,                         -- { code, message, raw }
 
@@ -221,6 +222,47 @@ create table public.models (
 **RLS**：
 - SELECT：所有登录用户（`is_active = true`）
 - 写入：仅 service_role
+
+---
+
+### `templates` ★ 复刻核心配置表（ADR-016）
+
+编辑精选的爆款模板。`base_prompt` 等内部字段**仅服务端可读**，前端只读 `templates_public` 视图。
+
+```sql
+create table public.templates (
+  id                   uuid primary key default gen_random_uuid(),
+  slug                 text unique not null,
+  title                text not null,
+  theme                text not null,             -- 'game_character' | 'blind_box'（起步双主题）
+  reference_image_path text not null,             -- 'templates' bucket 内参考图 path
+  sample_output_paths  text[] not null default '{}',  -- 示范产出 path 列表
+  base_prompt          text not null,             -- ⚠️ 用户永不可见；可含 {subject} 占位
+  negative_prompt      text,                      -- ⚠️ 用户永不可见
+  model_id             text not null references public.models(id),
+  recommended_width    int  not null default 1024,
+  recommended_height   int  not null default 1024,
+  credits_cost         int  not null default 1,
+  keyword_placeholder  text,                      -- 主体关键词输入框占位/建议
+  is_active            bool not null default true,
+  sort_order           int  not null default 0,
+  created_at           timestamptz not null default now()
+);
+
+create index idx_templates_active_sort on public.templates (theme, sort_order) where is_active;
+
+-- 前端只读视图：安全列子集，绝不含 base_prompt / negative_prompt / model 内部参数
+create view public.templates_public as
+select id, slug, title, theme, reference_image_path, sample_output_paths,
+       recommended_width, recommended_height, credits_cost, keyword_placeholder, sort_order
+from public.templates
+where is_active;
+```
+
+**RLS / 权限**：
+- `templates` 基表：select / insert / update **仅 service_role**（admin 后台 + 服务端拼 prompt 走 admin client）。
+- `templates_public` 视图：security definer（默认），`grant select to authenticated`；只暴露安全列。
+- **拼 prompt**：服务端读基表 `base_prompt`，内插用户 `keyword`（有 `{subject}` 占位则替换，否则 `base_prompt + ", " + keyword`），结果写入 `generation_jobs.input`，不单独回前端。详见 [ADR-016](./09-decisions.md)。
 
 ---
 

@@ -75,7 +75,7 @@ create table public.generation_jobs (
   provider_job_id  text,                          -- 第三方 job id
   model            text not null,                 -- 'flux-pro' 等
 
-  input            jsonb not null,                -- 全部输入参数（复刻时含 keyword；拼接后的 prompt 也落此，base_prompt 不单独回前端）
+  input            jsonb not null,                -- 复刻输入：keyword + 尺寸；拼接后的 prompt 不落库（ADR-016：jobs 行 owner 可经 RLS 读回，避免泄露 base_prompt 结构），服务端用 base_prompt+keyword 临时重拼
   output           jsonb,                         -- { assets: [...] }
   error            jsonb,                         -- { code, message, raw }
 
@@ -97,12 +97,9 @@ create index idx_jobs_provider_job on public.generation_jobs (provider, provider
 **`input` jsonb 示例（text_to_image）**：
 ```json
 {
-  "prompt": "a cat in a spacesuit, oil painting",
-  "negativePrompt": "blurry, low quality",
+  "keyword": "女骑士",
   "width": 1024,
-  "height": 1024,
-  "seed": 12345,
-  "numImages": 1
+  "height": 1024
 }
 ```
 

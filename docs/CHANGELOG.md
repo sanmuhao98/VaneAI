@@ -15,6 +15,7 @@
 - **W2 用 mock provider 起步**：无真实 `FAL_API_KEY`，先用生成的 SVG 占位图验证整条闭环；真实 fal 活测待填 key。
 - **方案 A·服务层抽离**：流水抽成 `runGeneration`，W3 异步化只移调用点。
 - **安全修正（ADR-016 兜底加固）**：`templates_public` 是 security definer + 自动可更新视图，Supabase 默认给 anon/authenticated 授予 DML，经验证可越权 UPDATE/DELETE 基表绕过 RLS；已在 migration 中 `revoke insert/update/delete/truncate ... from anon, authenticated`，仅保留 select。
+- **安全修正（ADR-016 兜底加固·二）**：`generation_jobs.input` 不再持久化拼接后的 prompt（jobs 行 owner 可经 RLS 读回，会泄露 base_prompt 结构）；只存 keyword + 尺寸，prompt 服务端临时重拼。
 
 **未变**：技术栈、6 周里程碑节奏、视频方向延后、ECC 协作偏好。
 

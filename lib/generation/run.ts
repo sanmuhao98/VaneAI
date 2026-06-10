@@ -46,9 +46,10 @@ export async function runGeneration(input: RunGenerationInput): Promise<RunGener
       template_id: template.id,
       provider: model.provider,
       model: model.id,
+      // ADR-016: do NOT persist the assembled prompt (jobs are owner-readable via RLS);
+      // it is reconstructable server-side from base_prompt + keyword when needed.
       input: {
         keyword: input.keyword,
-        prompt,
         width: template.recommended_width,
         height: template.recommended_height,
       },

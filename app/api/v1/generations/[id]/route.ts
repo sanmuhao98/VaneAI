@@ -51,3 +51,25 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   return apiOk({ job: toJobView(job as JobViewRow), assets })
 }
+
+// Soft delete (docs/05): sets deleted_at; storage cleanup is a W4 cron.
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const user = await requireUser()
+  if (!user) return apiFail('unauthorized', '请先登录', 401)
+  const { id } = await params
+
+  // Ownership via user-client read (RLS also hides already-deleted rows → 404).
+  const supabase = await createClient()
+  const { data: job } = await supabase.from('generation_jobs').select('id').eq('id', id).maybeSingle()
+  if (!job) return apiFail('not_found', '任务不存在', 404)
+
+  const { error } = await createAdminClient()
+    .from('generation_jobs')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) {
+    console.error('[generations:delete] failed', error)
+    return apiFail('internal_error', '删除失败，请重试', 500)
+  }
+  return apiOk({ id })
+}

@@ -5,7 +5,32 @@ import { requireUser } from '@/lib/api/auth'
 import { generationCreated, inngest } from '@/inngest/client'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createGenerationJob } from '@/lib/generation/create-job'
+import { listJobs } from '@/lib/generation/list-jobs'
 import { DevCallLimitError, TemplateNotFoundError } from '@/lib/generation/errors'
+
+const listQuerySchema = z.object({
+  cursor: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+  status: z.enum(['pending', 'running', 'succeeded', 'failed', 'canceled']).optional(),
+})
+
+// Personal job list — cursor pagination (docs/05).
+export async function GET(request: NextRequest) {
+  const user = await requireUser()
+  if (!user) return apiFail('unauthorized', '请先登录', 401)
+
+  const url = new URL(request.url)
+  const parsed = listQuerySchema.safeParse(Object.fromEntries(url.searchParams))
+  if (!parsed.success) return apiFail('validation_error', '查询参数无效', 400)
+
+  try {
+    const { jobs, nextCursor } = await listJobs({ userId: user.id, ...parsed.data })
+    return apiOk({ jobs, nextCursor })
+  } catch (err) {
+    console.error('[generations] listJobs failed', err)
+    return apiFail('internal_error', '查询失败，请重试', 500)
+  }
+}
 
 // Only the subject keyword is accepted — NO prompt field exists in the schema (ADR-016).
 const bodySchema = z.object({

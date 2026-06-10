@@ -4,8 +4,15 @@ import { createClient } from '@/lib/supabase/server'
 import { templateImageUrl } from '@/lib/templates/image-url'
 import { ReplicateForm } from './_components/ReplicateForm'
 
-export default async function TemplateDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function TemplateDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>
+  searchParams: Promise<{ keyword?: string }>
+}) {
   const { slug } = await params
+  const { keyword } = await searchParams
   const supabase = await createClient()
   const { data: t } = await supabase
     .from('templates_public')
@@ -51,7 +58,11 @@ export default async function TemplateDetailPage({ params }: { params: Promise<{
             推荐尺寸 {t.recommended_width}×{t.recommended_height}
           </p>
           <div className="mt-6">
-            <ReplicateForm templateId={t.id} placeholder={t.keyword_placeholder} />
+            <ReplicateForm
+              templateId={t.id}
+              placeholder={t.keyword_placeholder}
+              initialKeyword={typeof keyword === 'string' ? keyword : undefined}
+            />
           </div>
         </div>
       </div>

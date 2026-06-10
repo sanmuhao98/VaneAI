@@ -75,16 +75,16 @@ W7+ 视频方向(V2)
 **目标**：上线前必备运营能力。
 
 任务：
-- [ ] `credit_ledger` + `daily_quota` + `profiles.credits_balance` trigger
-- [ ] 创建任务事务：扣积分 + 计配额 + 写 job（**必须 Postgres RPC**，见 04；不可复制 create-job 里 dev 限额的 count-then-insert 模式）
-- [ ] `inngest/functions/refund-on-failure.ts`
-- [ ] 前端：余额展示 + 配额条 + 余额不足/配额耗尽的明确提示
+- [x] `credit_ledger` + `daily_quota` + `profiles.credits_balance` trigger（注册赠送改走 ledger）
+- [x] 创建任务事务：扣积分 + 计配额 + 写 job（已实现为 `create_generation_job` RPC，migration 0009）
+- [x] `inngest/functions/refund-on-failure.ts`（幂等：唯一索引兜底）
+- [x] 前端：余额展示 + 配额展示 + 余额不足/配额耗尽明确提示（402/429）
 - [ ] Sentry 接入（前端 + Inngest function；admin 后台查失败原因依赖服务端日志里的原始错误——job 行只存脱敏文案）
-- [ ] 错误统一封装 + 用户可读文案
+- [x] 错误统一封装 + 用户可读文案（job.error 落库即脱敏）
 - [ ] Admin 路由 + 白名单守卫
 - [ ] Admin 任务列表 + 失败原因 + 用户列表
-- [ ] `inngest/functions/cleanup-soft-deleted.ts`（cron 每日；含取消竞态产生的孤儿 assets）
-- [ ] `inngest/functions/sweep-stale-jobs.ts`（cron：running/pending 超时标 failed——进程崩溃兜底；积分上线后悬挂任务=退款负债）
+- [x] `inngest/functions/cleanup-soft-deleted.ts`（cron 每日）
+- [x] `inngest/functions/sweep-stale-jobs.ts`（cron */10min：超时标 failed → 自动回补）
 
 **验收**：余额耗尽阻断；失败任务自动回补；admin 能查任意失败 job 原因。
 

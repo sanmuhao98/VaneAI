@@ -25,8 +25,8 @@ type ApiResponse<T> =
 | `forbidden` | 403 | 无权限（含 RLS 拦截后转成的） |
 | `not_found` | 404 | 资源不存在（含模板下架） |
 | `validation_error` | 400 | 参数校验失败 |
-| `quota_exceeded` | 429 | 配额耗尽（当前为 `DAILY_DEV_CALL_LIMIT` 全局守卫；W4 改为用户级配额） |
-| `insufficient_credits` | 402 | 积分不足（🔜 W4） |
+| `quota_exceeded` | 429 | 配额耗尽（用户级每日配额 + dev 全局守卫） |
+| `insufficient_credits` | 402 | 积分不足 |
 | `provider_error` | 502 | 上游模型服务错误 |
 | `internal_error` | 500 | 兜底 |
 
@@ -108,7 +108,7 @@ Query: ?status=…&cursor=<created_at_iso>&limit=20（默认 20，最大 50）
 
 ### 用户
 
-#### `GET /api/v1/me` 🔜 W4
+#### `GET /api/v1/me` ✅
 
 用户信息 + 积分余额 + 当日配额用量。
 
@@ -151,11 +151,11 @@ POST /api/v1/admin/users/:id/grant-credits
 | 防线 | 状态 |
 |------|------|
 | `DAILY_DEV_CALL_LIMIT`：当日真实 provider 调用全局上限（local/preview 设置，生产不设） | ✅ |
-| 用户级每日配额（`daily_quota`，默认 10 次/天） | 🔜 W4 |
+| 用户级每日配额（`daily_quota`，默认 10 次/天，RPC 内强制） | ✅ |
 | 用户级请求限流（30 req/min 写、120 req/min 读；Postgres 表 + advisory lock，不引 Redis） | 🔜 W4 |
 
-> ⚠️ W4 的"扣积分 + 计配额 + 写 job"必须实现为**单个 Postgres function（RPC）**：
-> supabase-js 走 PostgREST，不支持跨语句事务。详见 [04-data-model.md](./04-data-model.md)。
+> ✅ "扣积分 + 计配额 + 写 job"已实现为单个 Postgres function（`create_generation_job`，migration 0009）——
+> supabase-js 走 PostgREST 不支持跨语句事务，多步调用会双花。详见 [04-data-model.md](./04-data-model.md)。
 
 ## 版本策略
 

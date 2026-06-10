@@ -1,5 +1,19 @@
 # 文档变更日志
 
+## 2026-06-10 · W4 落地（核心货币层）· 积分 + 配额 + 失败回补
+
+**产出**（计划：[2026-06-10-w4-credits-quota.md](./superpowers/plans/2026-06-10-w4-credits-quota.md)）：
+- ✅ `credit_ledger` + `daily_quota` + 余额同步 trigger（migration 0008）；**余额唯一来源是 ledger**，注册赠送改走 `signup_bonus` 行
+- ✅ `create_generation_job` RPC（migration 0009）：配额校验 + 扣费 + 写 job 单事务，`FOR UPDATE` 串行化并发——落实 docs/04 的 PostgREST 无事务约束
+- ✅ 失败自动回补：`generation/failed` 事件（worker 失败与 stale 清扫统一触发）→ `refund-on-failure`；幂等三重保障（部分唯一索引 / unique violation 捕获 / Inngest retries 安全）
+- ✅ 两个 cron：`sweep-stale-jobs`（*/10min，悬挂 → failed → 回补）、`cleanup-soft-deleted`（每日，软删 >7d 清 storage + 硬删）
+- ✅ 402 `insufficient_credits` / 429 `quota_exceeded` 错误映射；`GET /api/v1/me`；dashboard 余额/配额展示；模板页消耗提示
+- ✅ 集成测试四场景（扣费/不足/配额/回补幂等）+ e2e 验收（复刻余额 100→99、清零后复刻被 402 阻断且无孤儿 job）
+
+**本期不做（roadmap 保持未勾）**：Admin 后台 UI、Sentry（需用户提供 DSN）、用户级请求限流。
+
+---
+
 ## 2026-06-10 · W3 合并前 code review 修复
 
 **触发**：独立 reviewer 复审 main..feat/w3 全量 diff（无 Critical，6 Important，8 Minor，判定 With fixes）。

@@ -1,8 +1,14 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { withDownloadParam } from '@/lib/storage/download-url'
 
 type ResultAsset = { signedUrl: string; width: number; height: number }
+
+type GenerationResponse = {
+  data: { jobId: string; assets: ResultAsset[] } | null
+  error: { code: string; message: string } | null
+}
 
 export function ReplicateForm({
   templateId,
@@ -27,9 +33,9 @@ export function ReplicateForm({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ templateId, keyword: keyword.trim() }),
       })
-      const data = (await res.json()) as { assets?: ResultAsset[]; error?: string }
-      if (!res.ok) throw new Error(data.error ?? '生成失败，请重试')
-      setAssets(data.assets ?? [])
+      const body = (await res.json()) as GenerationResponse
+      if (!res.ok || !body.data) throw new Error(body.error?.message ?? '生成失败，请重试')
+      setAssets(body.data.assets)
       shownAt.current = Date.now()
     } catch (err) {
       setError(err instanceof Error ? err.message : '生成失败，请重试')
@@ -57,7 +63,7 @@ export function ReplicateForm({
         <img src={assets[0].signedUrl} alt="复刻结果" className="w-full rounded-xl border border-neutral-200" />
         <div className="flex gap-3">
           <a
-            href={`${assets[0].signedUrl}&download`}
+            href={withDownloadParam(assets[0].signedUrl)}
             download
             className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:opacity-90"
           >

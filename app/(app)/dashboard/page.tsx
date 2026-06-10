@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { signOut } from '@/app/auth/actions'
+import { DAILY_FREE_LIMIT } from '@/lib/generation/quota'
 
 export default async function Dashboard() {
   const supabase = await createClient()
@@ -8,11 +9,26 @@ export default async function Dashboard() {
     data: { user },
   } = await supabase.auth.getUser()
 
+  const [{ data: profile }, { data: quota }] = await Promise.all([
+    supabase.from('profiles').select('credits_balance').eq('id', user!.id).maybeSingle(),
+    supabase
+      .from('daily_quota')
+      .select('count')
+      .eq('user_id', user!.id)
+      .eq('day', new Date().toISOString().slice(0, 10))
+      .maybeSingle(),
+  ])
+
   return (
     <main className="mx-auto flex min-h-svh max-w-2xl flex-col gap-6 px-6 py-24">
       <h1 className="text-2xl font-semibold tracking-tight">已登录</h1>
       <p className="text-muted-foreground">
         欢迎，<span className="font-medium text-foreground">{user?.email}</span>
+      </p>
+      <p className="text-sm text-neutral-600">
+        积分余额 <span className="font-semibold text-neutral-900">{profile?.credits_balance ?? 0}</span>
+        <span className="mx-2 text-neutral-300">·</span>
+        今日已用 {quota?.count ?? 0}/{DAILY_FREE_LIMIT}
       </p>
       <div className="flex gap-3">
         <Link

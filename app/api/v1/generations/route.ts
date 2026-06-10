@@ -6,7 +6,12 @@ import { generationCreated, inngest } from '@/inngest/client'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createGenerationJob } from '@/lib/generation/create-job'
 import { listJobs } from '@/lib/generation/list-jobs'
-import { DevCallLimitError, TemplateNotFoundError } from '@/lib/generation/errors'
+import {
+  DevCallLimitError,
+  InsufficientCreditsError,
+  QuotaExceededError,
+  TemplateNotFoundError,
+} from '@/lib/generation/errors'
 
 const listQuerySchema = z.object({
   cursor: z.string().optional(),
@@ -60,6 +65,8 @@ export async function POST(request: NextRequest) {
     ;({ jobId } = await createGenerationJob({ userId: user.id, ...parsed.data }))
   } catch (err) {
     if (err instanceof TemplateNotFoundError) return apiFail('not_found', '模板不存在或已下架', 404)
+    if (err instanceof QuotaExceededError) return apiFail('quota_exceeded', '今日免费次数已用完，明天再来吧', 429)
+    if (err instanceof InsufficientCreditsError) return apiFail('insufficient_credits', '积分不足，无法生成', 402)
     if (err instanceof DevCallLimitError) return apiFail('quota_exceeded', '今日生成次数已达上限，请明天再试', 429)
     console.error('[generations] createGenerationJob failed', err)
     return apiFail('internal_error', '创建任务失败，请重试', 500)

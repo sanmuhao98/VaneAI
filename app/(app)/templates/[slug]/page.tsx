@@ -17,7 +17,7 @@ export default async function TemplateDetailPage({
   const { data: t } = await supabase
     .from('templates_public')
     .select(
-      'id, slug, title, theme, reference_image_path, sample_output_paths, recommended_width, recommended_height, keyword_placeholder',
+      'id, slug, title, theme, reference_image_path, sample_output_paths, recommended_width, recommended_height, credits_cost, keyword_placeholder',
     )
     .eq('slug', slug)
     .maybeSingle()
@@ -56,6 +56,8 @@ export default async function TemplateDetailPage({
           <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
           <p className="mt-1 text-sm text-neutral-500">
             推荐尺寸 {t.recommended_width}×{t.recommended_height}
+            <span className="mx-2 text-neutral-300">·</span>
+            消耗 {t.credits_cost} 积分/次
           </p>
           <div className="mt-6">
             <ReplicateForm

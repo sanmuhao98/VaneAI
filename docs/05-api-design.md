@@ -134,15 +134,25 @@ MVP 用 Inngest function 内 polling（ADR-005）；webhook（校验 `X-Fal-Sign
 
 ---
 
-### Admin（仅白名单用户）🔜 W4
+### Admin（仅白名单用户）
 
-```
-GET  /api/v1/admin/jobs
-GET  /api/v1/admin/users
-POST /api/v1/admin/users/:id/grant-credits
+#### `POST /api/v1/admin/users/:id/grant-credits` ✅
+
+```jsonc
+// Request
+{ "amount": 50 }    // 1–10000 整数
+// Response
+{ "data": { "userId": "uuid", "balance": 149 }, "error": null }
 ```
 
-权限：`auth.user().email in ADMIN_EMAILS`。
+写 ledger（reason `admin_grant`），trigger 同步余额；操作人记入服务端日志。
+
+#### 任务/用户列表 — RSC 直读，不设 GET 端点（YAGNI）
+
+`/admin/jobs`、`/admin/users` 页面经 `lib/admin/queries.ts` 直接查询（service_role），
+没有第二个消费方之前不开 `GET /api/v1/admin/*` 端点。
+
+权限：双层守卫——`(admin)` layout（页面）与 `getAdminUser()`（API）共用 `isAdminEmail(email, ADMIN_EMAILS)`。
 
 ---
 

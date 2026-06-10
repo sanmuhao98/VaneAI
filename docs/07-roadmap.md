@@ -81,8 +81,8 @@ W7+ 视频方向(V2)
 - [x] 前端：余额展示 + 配额展示 + 余额不足/配额耗尽明确提示（402/429）
 - [ ] Sentry 接入（前端 + Inngest function；admin 后台查失败原因依赖服务端日志里的原始错误——job 行只存脱敏文案）
 - [x] 错误统一封装 + 用户可读文案（job.error 落库即脱敏）
-- [ ] Admin 路由 + 白名单守卫
-- [ ] Admin 任务列表 + 失败原因 + 用户列表
+- [x] Admin 路由 + 白名单守卫（ADMIN_EMAILS，layout/API 双层）
+- [x] Admin 任务列表（状态筛选 + 错误码）+ 用户列表 + 手动加积分（走 ledger）
 - [x] `inngest/functions/cleanup-soft-deleted.ts`（cron 每日）
 - [x] `inngest/functions/sweep-stale-jobs.ts`（cron */10min：超时标 failed → 自动回补）
 

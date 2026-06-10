@@ -1,5 +1,19 @@
 # 文档变更日志
 
+## 2026-06-10 · W4 收尾 · Admin 后台
+
+**产出**：
+- ✅ 白名单守卫双层化：`isAdminEmail` 纯函数（TDD）共用于 `(admin)` layout、`getAdminUser()` API 守卫、dashboard 条件入口
+- ✅ `/admin/jobs`：全用户任务列表 + 状态筛选 + 脱敏错误码列（原始报错按 jobId 查服务端日志——既定纪律）
+- ✅ `/admin/users`：用户列表（GoTrue admin API + profiles 余额）+ 行内手动加分
+- ✅ `POST /api/v1/admin/users/:id/grant-credits`：走 ledger（`admin_grant`），操作人记日志；未授权 403 实测
+- 决策：admin 任务/用户列表为 RSC 直读（`lib/admin/queries.ts`），不开 GET API 端点（YAGNI，05 已注明）
+- e2e 验收：加分 50 → 余额 99→149 + ledger 行正确；失败任务筛选展示正常
+
+**W4 剩余**：Sentry（待用户提供 DSN）、用户级请求限流（lift 到 W5 前）。
+
+---
+
 ## 2026-06-10 · W4 落地（核心货币层）· 积分 + 配额 + 失败回补
 
 **产出**（计划：[2026-06-10-w4-credits-quota.md](./superpowers/plans/2026-06-10-w4-credits-quota.md)）：

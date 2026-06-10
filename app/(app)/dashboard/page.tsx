@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { serverEnv } from '@/lib/env'
 import { signOut } from '@/app/auth/actions'
+import { isAdminEmail } from '@/lib/api/admin-allowlist'
 import { DAILY_FREE_LIMIT } from '@/lib/generation/quota'
 
 export default async function Dashboard() {
@@ -43,6 +45,14 @@ export default async function Dashboard() {
         >
           我的作品
         </Link>
+        {isAdminEmail(user?.email, serverEnv.ADMIN_EMAILS) ? (
+          <Link
+            href="/admin/jobs"
+            className="self-start rounded-full border border-dashed border-neutral-400 px-5 py-2 text-sm font-medium text-neutral-600 hover:bg-muted"
+          >
+            Admin
+          </Link>
+        ) : null}
       </div>
       <form action={signOut}>
         <button

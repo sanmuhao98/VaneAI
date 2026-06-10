@@ -44,8 +44,8 @@
 
 **Files:** Modify `package.json`；Create `inngest/client.ts`、`app/api/inngest/route.ts`
 
-- [ ] **Step 1:** `pnpm add inngest` → package.json dependencies 出现 `inngest`
-- [ ] **Step 2:** 写 `inngest/client.ts`：
+- [x] **Step 1:** `pnpm add inngest` → package.json dependencies 出现 `inngest`
+- [x] **Step 2:** 写 `inngest/client.ts`：
 
 ```ts
 import { EventSchemas, Inngest } from 'inngest'
@@ -61,7 +61,7 @@ export const inngest = new Inngest({
 })
 ```
 
-- [ ] **Step 3:** 写 `app/api/inngest/route.ts`：
+- [x] **Step 3:** 写 `app/api/inngest/route.ts`：
 
 ```ts
 import { serve } from 'inngest/next'
@@ -73,13 +73,13 @@ export const { GET, POST, PUT } = serve({ client: inngest, functions: [textToIma
 
 （此时 `text-to-image` 未创建，typecheck 失败属预期，Task 4 补齐后再验证。）
 
-- [ ] **Step 4:** Commit（与 Task 4 一起提交，见 Task 4 Step 6）
+- [x] **Step 4:** Commit（与 Task 4 一起提交，见 Task 4 Step 6）
 
 ## Task 2: 任务状态纯函数（TDD）
 
 **Files:** Create `lib/generation/status.ts` + `lib/generation/status.test.ts`
 
-- [ ] **Step 1:** 写失败测试 `status.test.ts`：
+- [x] **Step 1:** 写失败测试 `status.test.ts`：
 
 ```ts
 import { describe, expect, test } from 'vitest'
@@ -108,8 +108,8 @@ describe('job status rules', () => {
 })
 ```
 
-- [ ] **Step 2:** `pnpm vitest run lib/generation/status.test.ts` → FAIL（模块不存在）
-- [ ] **Step 3:** 实现 `status.ts`：
+- [x] **Step 2:** `pnpm vitest run lib/generation/status.test.ts` → FAIL（模块不存在）
+- [x] **Step 3:** 实现 `status.ts`：
 
 ```ts
 export type JobStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'canceled'
@@ -125,14 +125,14 @@ export function canRetry(s: JobStatus): boolean {
 }
 ```
 
-- [ ] **Step 4:** 重跑 → PASS
-- [ ] **Step 5:** `git commit -m "feat: 任务状态规则纯函数 (TDD)"`
+- [x] **Step 4:** 重跑 → PASS
+- [x] **Step 5:** `git commit -m "feat: 任务状态规则纯函数 (TDD)"`
 
 ## Task 3: job 安全视图纯函数（TDD）
 
 **Files:** Create `lib/generation/job-view.ts` + `job-view.test.ts`
 
-- [ ] **Step 1:** 写失败测试：错误信息只回 code + 通用文案（raw 可能含内部细节）；input 白名单只留 keyword/width/height（ADR-016 纵深防御）：
+- [x] **Step 1:** 写失败测试：错误信息只回 code + 通用文案（raw 可能含内部细节）；input 白名单只留 keyword/width/height（ADR-016 纵深防御）：
 
 ```ts
 import { describe, expect, test } from 'vitest'
@@ -161,7 +161,7 @@ describe('toJobView', () => {
 })
 ```
 
-- [ ] **Step 2:** 跑 → FAIL；**Step 3:** 实现：
+- [x] **Step 2:** 跑 → FAIL；**Step 3:** 实现：
 
 ```ts
 export type JobViewRow = {
@@ -189,13 +189,13 @@ export function toJobView(row: JobViewRow) {
 }
 ```
 
-- [ ] **Step 4:** 跑 → PASS；**Step 5:** `git commit -m "feat: job 客户端安全视图 (TDD)"`
+- [x] **Step 4:** 跑 → PASS；**Step 5:** `git commit -m "feat: job 客户端安全视图 (TDD)"`
 
 ## Task 4: run.ts 拆分 + Inngest function + POST 异步化
 
 **Files:** Create `lib/generation/create-job.ts`、`lib/generation/execute-job.ts`、`inngest/functions/text-to-image.ts`；Delete `lib/generation/run.ts`；Modify `app/api/v1/generations/route.ts`
 
-- [ ] **Step 1:** `create-job.ts`（搬运现 run.ts 的模板/模型校验、dev 限额、job insert；不再调 provider）：
+- [x] **Step 1:** `create-job.ts`（搬运现 run.ts 的模板/模型校验、dev 限额、job insert；不再调 provider）：
 
 ```ts
 import 'server-only'
@@ -254,7 +254,7 @@ export async function createGenerationJob(input: {
 }
 ```
 
-- [ ] **Step 2:** `execute-job.ts`（worker 主体；两处取消检查；失败标 failed 后**返回**而非抛出）：
+- [x] **Step 2:** `execute-job.ts`（worker 主体；两处取消检查；失败标 failed 后**返回**而非抛出）：
 
 ```ts
 import 'server-only'
@@ -378,7 +378,7 @@ export async function executeGenerationJob(jobId: string): Promise<ExecuteResult
 }
 ```
 
-- [ ] **Step 3:** `inngest/functions/text-to-image.ts`：
+- [x] **Step 3:** `inngest/functions/text-to-image.ts`：
 
 ```ts
 import { inngest } from '@/inngest/client'
@@ -393,7 +393,7 @@ export const textToImage = inngest.createFunction(
 )
 ```
 
-- [ ] **Step 4:** 改 `app/api/v1/generations/route.ts` 的 POST（删 `maxDuration`；只建 job + 发 event；send 失败则标 job failed）：
+- [x] **Step 4:** 改 `app/api/v1/generations/route.ts` 的 POST（删 `maxDuration`；只建 job + 发 event；send 失败则标 job failed）：
 
 ```ts
 import { type NextRequest } from 'next/server'
@@ -448,14 +448,14 @@ export async function POST(request: NextRequest) {
 }
 ```
 
-- [ ] **Step 5:** `rm lib/generation/run.ts`；`GenerationFailedError` 从 `errors.ts` 删除（无引用后）；`pnpm typecheck && pnpm test` → PASS
-- [ ] **Step 6:** `git add -A && git commit -m "feat: Inngest 异步化——create/execute 拆分 + worker + POST 只建 job 发 event (ADR-002/005)"`
+- [x] **Step 5:** `rm lib/generation/run.ts`；`GenerationFailedError` 从 `errors.ts` 删除（无引用后）；`pnpm typecheck && pnpm test` → PASS
+- [x] **Step 6:** `git add -A && git commit -m "feat: Inngest 异步化——create/execute 拆分 + worker + POST 只建 job 发 event (ADR-002/005)"`
 
 ## Task 5: requireUser helper + GET 详情（轮询目标）
 
 **Files:** Create `lib/api/auth.ts`、`app/api/v1/generations/[id]/route.ts`
 
-- [ ] **Step 1:** `lib/api/auth.ts`：
+- [x] **Step 1:** `lib/api/auth.ts`：
 
 ```ts
 import { createClient } from '@/lib/supabase/server'
@@ -469,7 +469,7 @@ export async function requireUser() {
 }
 ```
 
-- [ ] **Step 2:** `app/api/v1/generations/[id]/route.ts` 的 GET（用户 client 读 job/assets——RLS 兜所有权 + 软删；admin 批量签 URL）：
+- [x] **Step 2:** `app/api/v1/generations/[id]/route.ts` 的 GET（用户 client 读 job/assets——RLS 兜所有权 + 软删；admin 批量签 URL）：
 
 ```ts
 import { apiFail, apiOk } from '@/lib/api/response'
@@ -515,13 +515,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 }
 ```
 
-- [ ] **Step 3:** `pnpm typecheck` → PASS；**Step 4:** `git commit -m "feat: GET /generations/:id 详情（轮询目标）+ requireUser helper"`
+- [x] **Step 3:** `pnpm typecheck` → PASS；**Step 4:** `git commit -m "feat: GET /generations/:id 详情（轮询目标）+ requireUser helper"`
 
 ## Task 6: ReplicateForm 轮询 + 生成中取消
 
 **Files:** Modify `ReplicateForm.tsx`；Create `app/api/v1/generations/[id]/cancel/route.ts`
 
-- [ ] **Step 1:** cancel route（user client 校验所有权与状态，admin 写 canceled）：
+- [x] **Step 1:** cancel route（user client 校验所有权与状态，admin 写 canceled）：
 
 ```ts
 import { apiFail, apiOk } from '@/lib/api/response'
@@ -553,20 +553,20 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 }
 ```
 
-- [ ] **Step 2:** ReplicateForm 改轮询（POST 拿 jobId → 1.5s 轮询详情，60s 上限；succeeded 展示 / failed、canceled 报错 / 超时提示去作品库；生成中显示取消按钮）。完整代码见仓库实现（要点：`pollJob` 循环 + `cancelRef` 中断 + 复用现有结果/埋点 UI）。
-- [ ] **Step 3:** `pnpm typecheck && pnpm lint` → PASS；**Step 4:** `git commit -m "feat: 复刻表单轮询 + 取消 (ADR-005)"`
+- [x] **Step 2:** ReplicateForm 改轮询（POST 拿 jobId → 1.5s 轮询详情，60s 上限；succeeded 展示 / failed、canceled 报错 / 超时提示去作品库；生成中显示取消按钮）。完整代码见仓库实现（要点：`pollJob` 循环 + `cancelRef` 中断 + 复用现有结果/埋点 UI）。
+- [x] **Step 3:** `pnpm typecheck && pnpm lint` → PASS；**Step 4:** `git commit -m "feat: 复刻表单轮询 + 取消 (ADR-005)"`
 
 ## Task 7: 异步闭环 e2e 冒烟
 
-- [ ] **Step 1:** 三进程起：`supabase start`（已起）、`npx inngest-cli@latest dev -u http://localhost:3000/api/inngest`、`pnpm dev`
-- [ ] **Step 2:** 浏览器登录 → 模板 → 关键词 → 复刻：观察「生成中」→ 数秒后出图；DB 断言 job `pending→succeeded`、provider=mock、asset path `image-0.svg`
-- [ ] **Step 3:** 无 commit（验证任务）
+- [x] **Step 1:** 三进程起：`supabase start`（已起）、`npx inngest-cli@latest dev -u http://localhost:3000/api/inngest`、`pnpm dev`
+- [x] **Step 2:** 浏览器登录 → 模板 → 关键词 → 复刻：观察「生成中」→ 数秒后出图；DB 断言 job `pending→succeeded`、provider=mock、asset path `image-0.svg`
+- [x] **Step 3:** 无 commit（验证任务）
 
 ## Task 8: 列表查询共用层 + GET 列表 + /library 页
 
 **Files:** Create `lib/generation/list-jobs.ts`、`app/(app)/library/page.tsx`；Modify `app/api/v1/generations/route.ts`（加 GET）、`app/(app)/dashboard/page.tsx`
 
-- [ ] **Step 1:** `list-jobs.ts`（游标 = created_at ISO；首图批量签名 URL）：
+- [x] **Step 1:** `list-jobs.ts`（游标 = created_at ISO；首图批量签名 URL）：
 
 ```ts
 import 'server-only'
@@ -623,14 +623,14 @@ export async function listJobs(opts: { userId: string; cursor?: string; limit?: 
 }
 ```
 
-- [ ] **Step 2:** `generations/route.ts` 加 GET（query 校验 + listJobs）；**Step 3:** `/library` RSC 页：状态筛选 chips + 卡片网格（previewUrl 或状态占位）+ 「加载更多」链接（`?cursor=`）；dashboard 加「我的作品」入口
-- [ ] **Step 4:** `pnpm typecheck && pnpm lint` → PASS；**Step 5:** `git commit -m "feat: 作品库列表（游标分页）+ GET /generations 列表 API"`
+- [x] **Step 2:** `generations/route.ts` 加 GET（query 校验 + listJobs）；**Step 3:** `/library` RSC 页：状态筛选 chips + 卡片网格（previewUrl 或状态占位）+ 「加载更多」链接（`?cursor=`）；dashboard 加「我的作品」入口
+- [x] **Step 4:** `pnpm typecheck && pnpm lint` → PASS；**Step 5:** `git commit -m "feat: 作品库列表（游标分页）+ GET /generations 列表 API"`
 
 ## Task 9: 详情页 + 软删（API + RLS 对齐）
 
 **Files:** Create `app/(app)/library/[id]/page.tsx`、`_components/JobActions.tsx`、`supabase/migrations/20260610000002_assets_softdelete_rls.sql`；Modify `app/api/v1/generations/[id]/route.ts`（加 DELETE）
 
-- [ ] **Step 1:** migration（assets SELECT 过滤软删 job——review 遗留项）：
+- [x] **Step 1:** migration（assets SELECT 过滤软删 job——review 遗留项）：
 
 ```sql
 -- Migration: 0007 — assets visibility follows job soft-delete
@@ -648,24 +648,24 @@ using (
 ```
 
 `supabase migration up` 应用。
-- [ ] **Step 2:** DELETE handler（user client 验所有权，admin 置 deleted_at）→ `apiOk({ id })`
-- [ ] **Step 3:** 详情页 RSC：大图 + keyword + 模板名（templates_public 查 title）+ 时间 + 状态；`JobActions`（client）：删除（确认后 DELETE → 回 /library）、取消（pending/running）、再次复刻（链接 `/templates/[slug]?keyword=`，ReplicateForm 读 searchParam 预填）
-- [ ] **Step 4:** `pnpm typecheck && pnpm lint && pnpm test` → PASS；**Step 5:** `git commit -m "feat: 作品详情页 + 软删 + assets RLS 软删对齐"`
+- [x] **Step 2:** DELETE handler（user client 验所有权，admin 置 deleted_at）→ `apiOk({ id })`
+- [x] **Step 3:** 详情页 RSC：大图 + keyword + 模板名（templates_public 查 title）+ 时间 + 状态；`JobActions`（client）：删除（确认后 DELETE → 回 /library）、取消（pending/running）、再次复刻（链接 `/templates/[slug]?keyword=`，ReplicateForm 读 searchParam 预填）
+- [x] **Step 4:** `pnpm typecheck && pnpm lint && pnpm test` → PASS；**Step 5:** `git commit -m "feat: 作品详情页 + 软删 + assets RLS 软删对齐"`
 
 ## Task 10: 重试端点 + 详情页接线
 
 **Files:** Create `app/api/v1/generations/[id]/retry/route.ts`；Modify `JobActions.tsx`
 
-- [ ] **Step 1:** retry route：user client 读原 job（含 input/template_id）→ `canRetry` 校验 → `createGenerationJob`（同模板同 keyword）→ `inngest.send` → `apiOk({ newJobId })`；失败分支同 POST /generations
-- [ ] **Step 2:** JobActions 加「重试」（failed/canceled 时显示）→ 成功后跳 `/library/[newJobId]`
-- [ ] **Step 3:** 验证 + `git commit -m "feat: 失败任务重试"`
+- [x] **Step 1:** retry route：user client 读原 job（含 input/template_id）→ `canRetry` 校验 → `createGenerationJob`（同模板同 keyword）→ `inngest.send` → `apiOk({ newJobId })`；失败分支同 POST /generations
+- [x] **Step 2:** JobActions 加「重试」（failed/canceled 时显示）→ 成功后跳 `/library/[newJobId]`
+- [x] **Step 3:** 验证 + `git commit -m "feat: 失败任务重试"`
 
 ## Task 11: e2e 全量验收 + 文档同步
 
-- [ ] **Step 1:** e2e：复刻 → 作品库看到 → 详情 → 删除消失（DB deleted_at 置位、assets 查不到）→ 失败重试路径（mock 暂无失败注入，可跳过或手动改 DB 状态验证 UI）
-- [ ] **Step 2:** `pnpm lint && pnpm typecheck && pnpm test` 全绿
-- [ ] **Step 3:** 文档：07-roadmap W3 勾选；05 端点状态 🔜→✅；06 目录去 🔜 标注；CHANGELOG 加 W3 条目；`.env.example` 注明本地需 `npx inngest-cli dev`
-- [ ] **Step 4:** `git commit -m "docs: W3 落地记录 + roadmap 勾选"`
+- [x] **Step 1:** e2e：复刻 → 作品库看到 → 详情 → 删除消失（DB deleted_at 置位、assets 查不到）→ 失败重试路径（mock 暂无失败注入，可跳过或手动改 DB 状态验证 UI）
+- [x] **Step 2:** `pnpm lint && pnpm typecheck && pnpm test` 全绿
+- [x] **Step 3:** 文档：07-roadmap W3 勾选；05 端点状态 🔜→✅；06 目录去 🔜 标注；CHANGELOG 加 W3 条目；`.env.example` 注明本地需 `npx inngest-cli dev`
+- [x] **Step 4:** `git commit -m "docs: W3 落地记录 + roadmap 勾选"`
 
 ---
 

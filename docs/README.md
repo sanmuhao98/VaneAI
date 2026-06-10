@@ -14,9 +14,9 @@
 | [02-architecture.md](./02-architecture.md) | 技术架构（前端/后端/DB/存储/异步/Provider） | 2026-06-10 |
 | [03-environments.md](./03-environments.md) | 本地 / Preview / Production 环境分工 | 2026-06-02 |
 | [04-data-model.md](./04-data-model.md) | 数据模型 + RLS 策略 | 2026-06-10 |
-| [05-api-design.md](./05-api-design.md) | API 设计（已对齐复刻模型 + 实现状态标注） | 2026-06-10 |
-| [06-directory-structure.md](./06-directory-structure.md) | 目录结构（现状 + 计划标注） | 2026-06-10 |
-| [07-roadmap.md](./07-roadmap.md) | 6 周开发里程碑（进度勾选的唯一真源） | 2026-06-10 |
+| [05-api-design.md](./05-api-design.md) | API 设计（已对齐复刻模型 + 实现状态标注） | 2026-06-10（W3 端点 ✅） |
+| [06-directory-structure.md](./06-directory-structure.md) | 目录结构（现状 + 计划标注） | 2026-06-10（W3） |
+| [07-roadmap.md](./07-roadmap.md) | 6 周开发里程碑（进度勾选的唯一真源） | 2026-06-10（W3 勾选） |
 | [08-non-goals.md](./08-non-goals.md) | 当前明确不做的事 | 2026-06-02 |
 | [09-decisions.md](./09-decisions.md) | 关键技术决策清单（ADR 简化版） | 2026-06-09（ADR-016） |
 
@@ -36,4 +36,4 @@
 
 ## 当前进度
 
-W2 已完成（同步复刻闭环 + mock provider 兜底）。下一步 W3：Inngest 异步化 + 作品库。详见 [07-roadmap.md](./07-roadmap.md)。
+W3 已完成（Inngest 异步化 + 轮询 + 作品库列表/详情/软删/取消/重试）。下一步 W4：积分 + 配额（Postgres RPC 事务）+ 错误处理 + 最小后台。详见 [07-roadmap.md](./07-roadmap.md)。

@@ -41,7 +41,7 @@
 | 框架 | **Next.js 16** App Router |
 | 语言 | **TypeScript**（strict） |
 | 样式 | **Tailwind CSS v4** + **shadcn/ui** |
-| 服务端数据 | **TanStack Query**（⏳ 未引入；W3 轮询是首个落点） |
+| 服务端数据 | **TanStack Query**（⏳ 未引入；W3 轮询用原生 fetch 循环已够，列表缓存/失效需求出现时再引入） |
 | 客户端状态 | **Zustand**（仅轻量 UI 态；⏳ 未引入，按需） |
 | URL 状态 | App Router search params（filters/sort/pagination） |
 | 表单 | **React Hook Form** + **Zod**（⏳ RHF 未引入；当前表单仅一个关键词输入框，原生 state 足够） |

@@ -34,7 +34,7 @@ type ApiResponse<T> =
 
 ### 生成任务
 
-#### `POST /api/v1/generations` ✅（W2 同步版，W3 改异步）
+#### `POST /api/v1/generations` ✅（W3 异步版）
 
 一键复刻：选定模板 + 主体关键词。**没有 prompt / negativePrompt / model / 尺寸字段**——
 prompt 由服务端用模板 `base_prompt` + `keyword` 拼接（ADR-016），模型与尺寸由模板预设。
@@ -46,14 +46,9 @@ prompt 由服务端用模板 `base_prompt` + `keyword` 拼接（ADR-016），模
   "keyword": "戴帽子的柴犬"       // 1–60 字，唯一的用户输入
 }
 
-// 200 Response（W2 同步版：直接返回结果）
+// 202 Response（异步：立即返回 pending，前端轮询详情）
 {
-  "data": {
-    "jobId": "uuid",
-    "assets": [
-      { "signedUrl": "https://...?token=...", "width": 1024, "height": 1024 }
-    ]
-  },
+  "data": { "job": { "id": "uuid", "status": "pending" } },
   "error": null
 }
 
@@ -64,39 +59,40 @@ prompt 由服务端用模板 `base_prompt` + `keyword` 拼接（ADR-016），模
 }
 ```
 
-**实现要点（现状）**：
+**实现要点**：
 - Zod 校验 body；关键词 trim 后 1–60 字
-- `runGeneration`（`lib/generation/run.ts`）：读模板基表（service_role）→ 拼 prompt → 写 job → 调 provider → 存 storage → 写 assets → 返回签名 URL
-- 同步链路是 W2 临时方案（ADR-005），`maxDuration = 60` 兜底 + provider fetch 30s 超时
+- `createGenerationJob`（`lib/generation/create-job.ts`）校验模板/模型 + dev 限额 + 写 pending job
+- 发 Inngest event `generation/created` 后 **202** 返回 `{ data: { job: { id, status: 'pending' } } }`，绝不等 provider
+- worker（`inngest/functions/text-to-image.ts` → `executeGenerationJob`）：重拼 prompt（ADR-016）→ 调 provider（30s 超时）→ 存 storage → 写 assets → 标终态；失败标 failed 后正常返回（retries:0，回补是 W4）
+- 前端轮询 `GET /generations/:id`（1.5s 间隔，60s 上限，生成中可取消）
 - `DAILY_DEV_CALL_LIMIT`（非生产环境）：当日真实 provider 调用数达上限 → `quota_exceeded` 429
-
-**W3 改造后**：仅写 job（pending）+ 发 Inngest event，立即返回 `{ data: { job } }`；前端轮询详情接口。
 
 ---
 
-#### `GET /api/v1/generations` 🔜 W3
+#### `GET /api/v1/generations` ✅
 
 列表（个人）。游标分页（不 OFFSET），走 `idx_jobs_user_created`。
 
 ```
-Query: ?status=…&cursor=<job_id>&limit=20（默认 20，最大 50）
-→ { "data": { "jobs": [...], "nextCursor": "uuid_or_null" }, "error": null }
+Query: ?status=…&cursor=<created_at_iso>&limit=20（默认 20，最大 50）
+→ { "data": { "jobs": [...含 previewUrl 首图签名 URL], "nextCursor": "iso_or_null" }, "error": null }
+游标 = 上一页最后一行的 created_at（keyset 分页；MVP 体量下同毫秒碰撞可忽略，V2 换复合游标）
 ```
 
-#### `GET /api/v1/generations/:id` 🔜 W3
+#### `GET /api/v1/generations/:id` ✅
 
 详情，含 assets 签名 URL（轮询目标，间隔 1.5s，最长 60s）。
 **`input` 中只回 `keyword` 与尺寸——拼接后的 prompt 不落库也绝不下发**（ADR-016）。
 
-#### `DELETE /api/v1/generations/:id` 🔜 W3
+#### `DELETE /api/v1/generations/:id` ✅
 
 软删（`deleted_at = now()`）。
 
-#### `POST /api/v1/generations/:id/cancel` 🔜 W3
+#### `POST /api/v1/generations/:id/cancel` ✅
 
 仅 pending/running。已扣积分不自动回补（取消视为主动放弃）。
 
-#### `POST /api/v1/generations/:id/retry` 🔜 W3
+#### `POST /api/v1/generations/:id/retry` ✅
 
 同模板 + 同 keyword 创建新任务，返回 `{ "data": { "newJobId": "uuid" } }`。
 
@@ -104,9 +100,9 @@ Query: ?status=…&cursor=<job_id>&limit=20（默认 20，最大 50）
 
 ### 资产
 
-#### `GET /api/v1/assets/:id/signed-url` 🔜 W3
+#### `GET /api/v1/assets/:id/signed-url` 🔜 按需
 
-签名 URL 过期（TTL 1h）后由前端调用续签。后端校验所有权后用 service_role 签发。
+签名 URL 过期（TTL 1h）后由前端调用续签。当前轮询/详情/列表每次都返回新签 URL，刷新页面即可续签——单独端点等真实需求出现再做（YAGNI）。
 
 ---
 

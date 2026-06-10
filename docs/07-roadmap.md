@@ -58,15 +58,15 @@ W7+ 视频方向(V2)
 **目标**：去掉同步调，全走 Inngest；作品库可看可删。
 
 任务：
-- [ ] 安装 Inngest SDK + `app/api/inngest/route.ts`
-- [ ] `inngest/functions/text-to-image.ts`（pending → running → 调 provider → 写 assets → succeeded/failed）
-- [ ] 改 `POST /generations`：仅写 job + 发 event
-- [ ] 前端轮询 `GET /generations/:id`（间隔 1.5s，最多 60s）
-- [ ] 取消接口
-- [ ] 作品库列表（游标分页）
-- [ ] 作品详情页
-- [ ] 软删
-- [ ] 「再次生成」入口
+- [x] 安装 Inngest SDK + `app/api/inngest/route.ts`
+- [x] `inngest/functions/text-to-image.ts`（pending → running → 调 provider → 写 assets → succeeded/failed）
+- [x] 改 `POST /generations`：仅写 job + 发 event
+- [x] 前端轮询 `GET /generations/:id`（间隔 1.5s，最多 60s）
+- [x] 取消接口
+- [x] 作品库列表（游标分页）
+- [x] 作品详情页
+- [x] 软删
+- [x] 「再次生成」入口
 
 **验收**：连续生成 5 张图，列表正常显示；取消和重试可用。
 

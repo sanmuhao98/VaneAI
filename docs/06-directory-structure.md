@@ -1,6 +1,6 @@
 # 06 · 项目目录结构
 
-> 2026-06-10 重写：对齐复刻产品形态与 W2 实际代码。
+> 2026-06-10 重写并随 W3 更新：对齐复刻产品形态与实际代码。
 > 原则：按特性分目录；不要 `controllers/services/repositories` 八股；文件 200–400 行，最多 800。
 > 标注：无标记 = 已存在；🔜 Wn = 该里程碑创建。**不预建空目录。**
 
@@ -17,7 +17,11 @@ VaneAI/
 │   │   │   └── [slug]/
 │   │   │       ├── page.tsx          # 详情：参考图 + 示范产出 + 复刻表单
 │   │   │       └── _components/ReplicateForm.tsx   # 仅关键词输入（ADR-016）
-│   │   └── library/                  # 🔜 W3 我的作品（列表/详情/软删/重试）
+│   │   └── library/                  # ★ 我的作品
+│   │       ├── page.tsx              # 列表（状态筛选 + 游标分页）
+│   │       └── [id]/
+│   │           ├── page.tsx          # 详情：大图 + 元信息 + 再次复刻
+│   │           └── _components/JobActions.tsx  # 取消/重试/删除（client）
 │   ├── (admin)/                      # 后台（🔜 W4 补 admin 白名单守卫与页面）
 │   │   └── layout.tsx
 │   ├── auth/
@@ -27,18 +31,29 @@ VaneAI/
 │   │       ├── page.tsx
 │   │       └── _components/MagicLinkForm.tsx
 │   ├── api/
-│   │   ├── v1/generations/route.ts   # POST 一键复刻（W2 同步版；🔜 W3 拆 [id]/cancel/retry）
-│   │   └── inngest/route.ts          # 🔜 W3 Inngest serve handler
+│   │   ├── v1/generations/
+│   │   │   ├── route.ts              # POST 创建（202 异步）+ GET 列表
+│   │   │   └── [id]/
+│   │   │       ├── route.ts          # GET 详情（轮询目标）+ DELETE 软删
+│   │   │       ├── cancel/route.ts   # POST 取消（尽力）
+│   │   │       └── retry/route.ts    # POST 重试（新 job）
+│   │   └── inngest/route.ts          # Inngest serve handler
 │   ├── layout.tsx / globals.css / not-found.tsx
 │
 ├── lib/                              # 业务逻辑层
-│   ├── api/response.ts               # apiOk / apiFail 统一响应封装（docs/05）
+│   ├── api/
+│   │   ├── response.ts               # apiOk / apiFail 统一响应封装（docs/05）
+│   │   └── auth.ts                   # requireUser（route 共用）
 │   ├── env.ts                        # 环境变量（Zod 校验；clientEnv/serverEnv 隔离）
 │   ├── generation/
-│   │   ├── run.ts                    # ★ 复刻流水线（W3 移入 Inngest function 调用）
+│   │   ├── create-job.ts             # ★ 校验 + dev 限额 + 写 pending job（API 调）
+│   │   ├── execute-job.ts            # ★ worker 主体：重拼 prompt → provider → storage → 终态
+│   │   ├── list-jobs.ts              # 列表查询 + 首图签名 URL（RSC 页与 API 共用）
+│   │   ├── status.ts                 # canCancel/canRetry/isTerminal + 状态文案（纯函数）
+│   │   ├── job-view.ts               # job 行 → 客户端安全视图（ADR-016 纵深防御）
 │   │   ├── prompt.ts                 # base_prompt + keyword 拼接（纯函数）
 │   │   ├── dev-limit.ts              # DAILY_DEV_CALL_LIMIT 守卫判断（纯函数）
-│   │   └── errors.ts                 # 分类错误（TemplateNotFound / Provider / DevCallLimit / GenerationFailed）
+│   │   └── errors.ts                 # 分类错误（TemplateNotFound / Provider / DevCallLimit）
 │   ├── providers/                    # ★ 模型 provider 抽象层
 │   │   ├── types.ts                  # GenerationProvider 接口
 │   │   ├── fal.ts                    # fal.ai 同步实现（30s 超时）
@@ -53,12 +68,12 @@ VaneAI/
 │   │   ├── client.ts                 # 浏览器端
 │   │   ├── server.ts                 # SSR / Route Handler（anon + cookie）
 │   │   └── admin.ts                  # service_role（import 'server-only' 守卫）
-│   ├── credits/                      # 🔜 W4 扣积分（RPC）/ 回补 / 余额
-│   └── jobs/                         # 🔜 W3 任务查询 / 状态机校验
+│   └── credits/                      # 🔜 W4 扣积分（RPC）/ 回补 / 余额
 │
-├── inngest/                          # 🔜 W3 client + functions（text-to-image / refund / cleanup）
+├── inngest/
+│   ├── client.ts                     # Inngest client + 类型化事件（eventType）
+│   └── functions/text-to-image.ts    # worker：generation/created → executeGenerationJob
 ├── components/                       # 🔜 跨页复用组件出现时再建（shadcn 落 components/ui）
-├── hooks/                            # 🔜 W3 use-generation 轮询等
 │
 ├── supabase/
 │   ├── config.toml
@@ -92,7 +107,7 @@ VaneAI/
 
 ### 4. Server-only 守卫
 
-`lib/supabase/admin.ts`、`lib/generation/run.ts`、`lib/storage/upload.ts` 顶部 `import 'server-only'`，防止 service_role / base_prompt 逻辑被打包进客户端。客户端访问 `serverEnv` 直接抛错（`lib/env.ts`）。
+`lib/supabase/admin.ts`、`lib/generation/{create-job,execute-job,list-jobs}.ts`、`lib/storage/upload.ts` 顶部 `import 'server-only'`，防止 service_role / base_prompt 逻辑被打包进客户端。客户端访问 `serverEnv` 直接抛错（`lib/env.ts`）。
 
 ### 5. 校验集中
 

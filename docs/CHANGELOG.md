@@ -1,5 +1,24 @@
 # 文档变更日志
 
+## 2026-06-10 · W3 落地 · 异步化 + 任务轮询 + 作品库
+
+**产出**（计划：[2026-06-10-w3-async-jobs-library.md](./superpowers/plans/2026-06-10-w3-async-jobs-library.md)）：
+- ✅ Inngest v4 接入（`eventType` 类型化事件 + `app/api/inngest` serve）；本地需 `INNGEST_DEV=1` + `npx inngest-cli dev`
+- ✅ 方案 A 兑现：`runGeneration` 拆为 `createGenerationJob`（API）/ `executeGenerationJob`（worker）；prompt 由 worker 从 base_prompt + keyword 重拼（ADR-016）
+- ✅ `POST /generations` 异步化：写 job + 发 event 后 202 返回；前端 1.5s 轮询 `GET /generations/:id`，60s 上限，生成中可取消（ADR-005）
+- ✅ 作品库：列表（状态筛选 + created_at 游标分页 + 首图批量签名 URL）/ 详情 / 软删 / 重试 /「再次复刻」关键词预填
+- ✅ migration 0007：assets SELECT 跟随 job 软删（06-10 review 遗留项闭环）
+- ✅ 端到端验收：异步复刻出图、删除即列表消失（deleted_at 置位）、failed 重试生成新 job 并完成；错误信息经 `toJobView` 脱敏（内部 message 不下发）
+
+**关键决策**：
+- **worker 失败不抛、retries: 0**：失败由 `executeGenerationJob` 标 failed 后正常返回——回补（W4）落地前不让 Inngest 盲重试烧 provider 费用。
+- **取消是尽力语义**：worker 启动前 + provider 返回后两次检查 `canceled`；竞态用条件 UPDATE 守卫。
+- **`/assets/:id/signed-url` 推迟**：详情/列表每次响应都重新签 URL，独立续签端点暂无真实需求（YAGNI）。
+
+**未变**：技术栈、里程碑节奏、ADR-016 隔离纪律。
+
+---
+
 ## 2026-06-10 · 设计 review 对账 · 文档修正 + W2 加固
 
 **触发**：全项目设计/文档 review，逐项验证后修复。

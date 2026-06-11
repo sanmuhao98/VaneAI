@@ -5,6 +5,13 @@ export class TemplateNotFoundError extends Error {
   }
 }
 
+export class ModelNotFoundError extends Error {
+  constructor(modelId: string) {
+    super(`model not found, inactive, or wrong type: ${modelId}`)
+    this.name = 'ModelNotFoundError'
+  }
+}
+
 export class ProviderError extends Error {
   raw?: unknown
   constructor(message: string, raw?: unknown) {

@@ -1,5 +1,20 @@
 # 文档变更日志
 
+## 2026-06-11 · ADR-018 · 文生图创作工作台 `/create`（scope 新增）
+
+**触发**：产品决策——在模板复刻之外开放自由文生图，两通路共享积分/配额/回补体系。
+
+**产出**：
+- ✅ `POST /api/v1/generations` union schema：模板复刻（仅关键词，ADR-016 不变）∪ `text_to_image`（prompt ≤500 / 负面 ≤200 / seed / 尺寸经 `mapSeedreamSize` 回环校验强制官方 2K 预设）
+- ✅ `create_t2i_generation_job` RPC（migration 0010）：与 0009 同构的配额+扣费+ledger 单事务；service_role only
+- ✅ `createTextToImageJob` + `ModelNotFoundError`（404 映射）；dev 调用预算守卫抽公共函数 `assertDevCallBudget`
+- ✅ `executeGenerationJob` 双通路：有 `template_id` 走服务端 recipe 重组（不持久化）；t2i 读 `job.input.prompt`（用户内容，持久化）
+- ✅ `/create` 页 + `CreateStudio`（暗面工作台——设计系统 v3 §1 明暗过渡规则的首个落地面）
+
+**纪律**：ADR-016 对模板不变——`base_prompt` 永不出服务端；用户自写 prompt 属用户内容。
+
+---
+
 ## 2026-06-11 · 设计系统 v3「头条日报」落地 + 模板素材竖版化
 
 **产出**：

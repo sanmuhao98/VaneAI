@@ -205,6 +205,18 @@
 
 ---
 
+## ADR-018 · 开放文生图创作工作台（模板复刻之外的第二生成通路）
+
+- **决策**：新增 `/create` 创作工作台——用户自写 prompt 的自由文生图，与模板复刻并存。`POST /generations` 升级为 union schema（templateId+keyword ∪ type=text_to_image）；记账走 `create_t2i_generation_job` RPC（migration 0010，与 0009 完全同构的配额/扣费/ledger 单事务）；模型行（`models.type='text_to_image'` 且 `is_active`）为 source of truth，新增模型零代码上架。
+- **为什么**：
+  - 模板复刻覆盖"零门槛出图"，但内测用户需要表达自由度——两通路互补，共享同一套积分/配额/失败回补体系
+  - Seedream 对中文 prompt 原生支持（ADR-017），自由文生图边际成本低
+- **边界（ADR-016 不受影响）**：模板 `base_prompt` 仍永不出服务端；用户自写 prompt 属用户内容，持久化于 `job.input`（worker 双通路：有 `template_id` 走服务端 recipe 重组，否则读 `input.prompt`）。输出尺寸强制官方 2K 预设白名单（`mapSeedreamSize` 回环校验，拒绝手填尺寸）。
+- **替代**：只做模板复刻（表达受限，放弃）；prompt 增强/改写（V2 再议）。
+- **回滚**：下架 `/create` 入口 + 相关 models 行 `is_active=false`；API union 分支保留无害。
+
+---
+
 ## 决策记录格式（新增 ADR 时复用）
 
 ```markdown

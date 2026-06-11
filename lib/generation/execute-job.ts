@@ -27,7 +27,7 @@ export async function executeGenerationJob(jobId: string): Promise<ExecuteResult
   try {
     const { data: job, error: jErr } = await admin
       .from('generation_jobs')
-      .select('id, user_id, status, template_id, input, provider')
+      .select('id, user_id, status, template_id, model, input, provider')
       .eq('id', jobId)
       .maybeSingle()
     if (jErr) throw jErr
@@ -35,24 +35,45 @@ export async function executeGenerationJob(jobId: string): Promise<ExecuteResult
     // Idempotency + cancel: only a pending job may start.
     if (job.status !== 'pending') return { status: 'skipped', reason: `status=${job.status}` }
 
-    const { data: template, error: tErr } = await admin
-      .from('templates')
-      .select('base_prompt, negative_prompt, model_id')
-      .eq('id', job.template_id)
-      .single()
-    if (tErr) throw tErr
+    const input = job.input as {
+      keyword?: string
+      prompt?: string
+      negative_prompt?: string
+      seed?: number
+      width: number
+      height: number
+    }
+
+    let prompt: string
+    let negativePrompt: string | undefined
+    let modelRowId: string
+
+    if (job.template_id) {
+      // 模板复刻：ADR-016 — prompt is re-assembled here, never persisted on the job row.
+      const { data: template, error: tErr } = await admin
+        .from('templates')
+        .select('base_prompt, negative_prompt, model_id')
+        .eq('id', job.template_id)
+        .single()
+      if (tErr) throw tErr
+      prompt = assemblePrompt(template.base_prompt, input.keyword ?? '')
+      negativePrompt = template.negative_prompt ?? undefined
+      modelRowId = template.model_id as string
+    } else {
+      // 文生图：用户自己的 prompt 持久化在 input（用户内容，非模板 recipe）。
+      if (!input.prompt) throw new Error(`t2i job has no prompt: ${jobId}`)
+      prompt = input.prompt
+      negativePrompt = input.negative_prompt || undefined
+      modelRowId = job.model as string
+    }
 
     const { data: model, error: mErr } = await admin
       .from('models')
       .select('provider_model, config')
-      .eq('id', template.model_id)
+      .eq('id', modelRowId)
       .single()
     if (mErr) throw mErr
     const modelConfig = (model.config ?? {}) as { watermark?: boolean }
-
-    const input = job.input as { keyword: string; width: number; height: number }
-    // ADR-016: prompt is re-assembled here, never persisted on the job row.
-    const prompt = assemblePrompt(template.base_prompt, input.keyword)
 
     // Resolve from job.provider — the provider recorded at creation. Re-resolving
     // from models + env could silently diverge (e.g. FAL key appearing mid-flight)
@@ -71,10 +92,11 @@ export async function executeGenerationJob(jobId: string): Promise<ExecuteResult
 
     const result = await provider.generate({
       prompt,
-      negativePrompt: template.negative_prompt ?? undefined,
+      negativePrompt,
       model: model.provider_model,
       width: input.width,
       height: input.height,
+      seed: input.seed,
       numImages: 1,
       watermark: modelConfig.watermark,
     })

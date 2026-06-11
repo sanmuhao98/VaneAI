@@ -22,6 +22,7 @@ export default async function AdminUsersPage({
             <th className="py-2 pr-3">邮箱</th>
             <th className="py-2 pr-3">用户 ID</th>
             <th className="py-2 pr-3">积分余额</th>
+            <th className="py-2 pr-3">激活</th>
             <th className="py-2 pr-3">注册时间</th>
             <th className="py-2">操作</th>
           </tr>
@@ -32,6 +33,9 @@ export default async function AdminUsersPage({
               <td className="py-2 pr-3">{u.email ?? '—'}</td>
               <td className="py-2 pr-3 font-mono text-xs text-neutral-500">{u.id.slice(0, 8)}…</td>
               <td className="py-2 pr-3 font-semibold">{u.creditsBalance}</td>
+              <td className="py-2 pr-3 font-mono text-xs">
+                {u.inviteCode ?? <span className="text-neutral-400">未激活</span>}
+              </td>
               <td className="py-2 pr-3 text-xs text-neutral-500">
                 {new Date(u.createdAt).toLocaleString('zh-CN', { hour12: false })}
               </td>
@@ -42,7 +46,7 @@ export default async function AdminUsersPage({
           ))}
           {users.length === 0 ? (
             <tr>
-              <td colSpan={5} className="py-6 text-center text-neutral-400">
+              <td colSpan={6} className="py-6 text-center text-neutral-400">
                 没有用户。
               </td>
             </tr>

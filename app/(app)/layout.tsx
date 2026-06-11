@@ -4,9 +4,11 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { serverEnv } from '@/lib/env'
 import { isAdminEmail } from '@/lib/api/admin-allowlist'
+import { inviteGateBlocks } from '@/lib/invites/gate'
 import { DAILY_FREE_LIMIT } from '@/lib/generation/quota'
 import { AppNav } from '@/components/layout/app-nav'
 import { UserMenu } from '@/components/layout/user-menu'
+import { InviteGate } from '@/components/invites/invite-gate'
 import { Button } from '@/components/ui/button'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -20,7 +22,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   const [{ data: profile }, { data: quota }] = await Promise.all([
-    supabase.from('profiles').select('credits_balance').eq('id', user.id).maybeSingle(),
+    supabase.from('profiles').select('credits_balance, invite_activated_at').eq('id', user.id).maybeSingle(),
     supabase
       .from('daily_quota')
       .select('count')
@@ -31,6 +33,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const credits = profile?.credits_balance ?? 0
   const used = quota?.count ?? 0
+  const isAdmin = isAdminEmail(user.email, serverEnv.ADMIN_EMAILS)
+  // 内测激活门（ADR-019）：门在 layout，整个 (app) 区一致受控；admin 旁路。
+  const gated = inviteGateBlocks(serverEnv.INVITE_GATE, profile?.invite_activated_at ?? null, isAdmin)
 
   return (
     <div className="flex min-h-svh flex-col bg-background">
@@ -78,13 +83,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <span className="sm:hidden">创作</span>
             </Button>
 
-            <UserMenu email={user.email ?? ''} isAdmin={isAdminEmail(user.email, serverEnv.ADMIN_EMAILS)} />
+            <UserMenu email={user.email ?? ''} isAdmin={isAdmin} />
           </div>
         </div>
       </header>
 
       {/* Pages render their own <main>; this is just the flex slot. */}
-      <div className="flex flex-1 flex-col">{children}</div>
+      <div className="flex flex-1 flex-col">{gated ? <InviteGate email={user.email ?? ''} /> : children}</div>
     </div>
   )
 }

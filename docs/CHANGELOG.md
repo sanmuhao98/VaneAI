@@ -1,5 +1,19 @@
 # 文档变更日志
 
+## 2026-06-11 · ADR-019 · 内测邀请激活门（W5 放人门槛闭环）
+
+**决策**（已与产品确认）：激活门而非注册门（OAuth 兼容）/ 多次使用码 / 暂不做 admin 管理 UI。设计：[specs/2026-06-11-invite-gate-design.md](./superpowers/specs/2026-06-11-invite-gate-design.md)。
+
+**产出**：
+- ✅ migration 0011：`invite_codes`（max_uses/used_count/is_active/expires_at，RLS 零策略仅 service_role）+ `profiles.invite_code/invite_activated_at` + `redeem_invite_code` RPC（FOR UPDATE 原子、幂等、大小写不敏感）
+- ✅ `lib/invites/`（errors/redeem/gate 纯函数）+ `POST /api/v1/invite/redeem`（invite_invalid/expired/exhausted 错误映射）
+- ✅ `(app)/layout` 门控：`INVITE_GATE='1'` 且未激活时 children 替换为兑码屏（编辑式空状态）；admin 邮箱旁路
+- ✅ admin 用户列表加「激活」列（显示所用码）；seed 加本地码 `VANE-DEV`
+- ✅ 测试：gate 纯函数 4 单测（先红后绿）+ RPC 5 集成测试（成功/幂等/超限/过期/无效）；e2e 走查：Mailpit 登录 → 见门 → 错码报错 → `vane-dev` 兑换放行，DB 计数与回填核对正确
+- 运营：生产插码 `insert into invite_codes (code, max_uses, note) values ('VANE-XXXX', 10, '首批内测群');`；Vercel 配 `INVITE_GATE=1`，W6 公开置 `0` 即拆门
+
+---
+
 ## 2026-06-11 · W5 · 落地页「头条日报」头版 + 服务条款/隐私静态页
 
 **产出**：

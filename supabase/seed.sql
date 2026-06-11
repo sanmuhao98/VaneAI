@@ -157,3 +157,8 @@ on conflict (slug) do update set
   recommended_height = excluded.recommended_height, credits_cost = excluded.credits_cost,
   keyword_placeholder = excluded.keyword_placeholder, sort_order = excluded.sort_order;
 -- END generated templates
+
+-- 邀请码（ADR-019）：本地开发码；生产码 SQL 手插，不进 seed。
+insert into public.invite_codes (code, max_uses, note)
+values ('VANE-DEV', 999, '本地开发自测')
+on conflict (code) do nothing;

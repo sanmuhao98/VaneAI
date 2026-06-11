@@ -58,6 +58,7 @@ export type AdminUserRow = {
   id: string
   email: string | null
   creditsBalance: number
+  inviteCode: string | null
   createdAt: string
 }
 
@@ -76,13 +77,17 @@ export async function listUsers(opts: { page?: number; perPage?: number } = {}):
 
   const ids = authUsers.map((u) => u.id)
   const balances = new Map<string, number>()
+  const inviteCodes = new Map<string, string | null>()
   if (ids.length) {
     const { data: profiles, error: pErr } = await admin
       .from('profiles')
-      .select('id, credits_balance')
+      .select('id, credits_balance, invite_code')
       .in('id', ids)
     if (pErr) throw pErr
-    for (const p of profiles ?? []) balances.set(p.id as string, p.credits_balance as number)
+    for (const p of profiles ?? []) {
+      balances.set(p.id as string, p.credits_balance as number)
+      inviteCodes.set(p.id as string, (p.invite_code as string | null) ?? null)
+    }
   }
 
   return {
@@ -90,6 +95,7 @@ export async function listUsers(opts: { page?: number; perPage?: number } = {}):
       id: u.id,
       email: u.email ?? null,
       creditsBalance: balances.get(u.id) ?? 0,
+      inviteCode: inviteCodes.get(u.id) ?? null,
       createdAt: u.created_at,
     })),
     page,

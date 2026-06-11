@@ -17,6 +17,8 @@ const serverSchema = z.object({
   SENTRY_DSN: z.string().url().optional().or(z.literal('')),
   ADMIN_EMAILS: z.string().optional().default(''),
   DAILY_DEV_CALL_LIMIT: z.coerce.number().int().nonnegative().optional(),
+  // 内测邀请激活门（ADR-019）：'1' 开门；W6 公开 beta 置 '0' 即拆除
+  INVITE_GATE: z.enum(['0', '1']).optional().default('0'),
 })
 
 const clientSchema = z.object({

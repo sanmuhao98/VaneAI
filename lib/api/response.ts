@@ -9,6 +9,9 @@ export type ApiErrorCode =
   | 'quota_exceeded'
   | 'insufficient_credits'
   | 'provider_error'
+  | 'invite_invalid'
+  | 'invite_expired'
+  | 'invite_exhausted'
   | 'internal_error'
 
 export function apiOk<T>(data: T, status = 200) {

@@ -217,6 +217,19 @@
 
 ---
 
+## ADR-019 · 内测邀请采用「激活门」而非注册门
+
+- **决策**：注册不拦（Magic Link / Google OAuth 照常），登录后进入 `(app)` 前必须兑换一次邀请码（`invite_codes` 多次使用码 + `redeem_invite_code` RPC 原子兑换，结果记在 `profiles.invite_activated_at`）。整门由 `INVITE_GATE` 环境变量控制，admin 邮箱旁路。设计详见 [specs/2026-06-11-invite-gate-design.md](./superpowers/specs/2026-06-11-invite-gate-design.md)。
+- **为什么**：
+  - OAuth 注册流程无法可靠携带邀请码，注册门会漏 Google 这条路
+  - 激活门控制的是「使用」而非「注册」，正是内测限人数的本意；W6 公开时 env 置 0 即拆门，零迁移
+  - 多次使用码（一码 N 次）匹配 5–10 人内测的发码成本；表结构天然兼容一人一码
+- **运营**：暂无管理 UI——生产插码用 SQL：`insert into invite_codes (code, max_uses, note) values ('VANE-XXXX', 10, '首批内测群');`；停用置 `is_active=false`。
+- **替代**：注册门（OAuth 覆盖不到）；邮箱白名单（每加一人改配置重部署）。
+- **回滚**：`INVITE_GATE=0`；表与列保留无害。
+
+---
+
 ## 决策记录格式（新增 ADR 时复用）
 
 ```markdown

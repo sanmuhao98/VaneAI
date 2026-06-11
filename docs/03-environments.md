@@ -108,6 +108,7 @@ supabase db reset    # 干净重跑
 | `SENTRY_DSN` | (空) | staging dsn | prod dsn |
 | `ADMIN_EMAILS` | dev list | dev list | 真实白名单 |
 | `DAILY_DEV_CALL_LIMIT` | 20 | 50 | (不设) |
+| `INVITE_GATE`（ADR-019 内测激活门） | `0`（默认关） | `1` | 内测期 `1`，公开 beta 置 `0` |
 
 **存放规则**：
 - **Local**：`.env.local`（gitignore）

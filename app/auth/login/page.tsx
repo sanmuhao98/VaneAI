@@ -1,5 +1,11 @@
+import type { Metadata } from 'next'
+import { redirect } from 'next/navigation'
+
+import { createClient } from '@/lib/supabase/server'
 import { MagicLinkForm } from './_components/MagicLinkForm'
 import { signInWithGoogle } from '@/app/auth/actions'
+
+export const metadata: Metadata = { title: '登录' }
 
 export default async function LoginPage({
   searchParams,
@@ -7,6 +13,13 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string }>
 }) {
   const params = await searchParams
+
+  // 已登录用户不再看登录表单（落地页顶栏「登录」对老用户即是入口）。
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (user) redirect('/dashboard')
 
   return (
     <main className="mx-auto flex min-h-svh max-w-md flex-col justify-center gap-8 px-6 py-24">

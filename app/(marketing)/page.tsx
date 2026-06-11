@@ -35,9 +35,13 @@ export default async function MarketingHome() {
     .from('templates_public')
     .select('slug, title, theme, reference_image_path, recommended_width, recommended_height')
     .order('sort_order')
-    .limit(7)
   const templates = (data ?? []) as Tpl[]
-  const [lead, ...gallery] = templates
+  const [lead, ...rest] = templates
+  // 作品选登要替双主题说话：各选 3 张，交替排版（统一 3:4 裁切保持版面齐整）。
+  const byTheme = (theme: string) => rest.filter((t) => t.theme === theme).slice(0, 3)
+  const gallery = byTheme('game_character')
+    .flatMap((t, i) => [t, byTheme('blind_box')[i]])
+    .filter(Boolean)
 
   return (
     <main>
@@ -81,19 +85,18 @@ export default async function MarketingHome() {
                 先逛模板库
               </Link>
             </div>
-            <dl className="mt-10 grid grid-cols-3 gap-6 border-t border-border pt-6">
+            <ul className="mt-10 grid grid-cols-3 gap-6 border-t border-border pt-6">
               {[
                 ['32', '套在线模板'],
                 ['1 积分', '一张图'],
                 ['100', '注册即送积分'],
               ].map(([num, label]) => (
-                <div key={label}>
-                  <dt className="sr-only">{label}</dt>
-                  <dd className="font-mono text-2xl font-medium tabular-nums">{num}</dd>
-                  <dd className="mt-1 text-xs text-muted-foreground">{label}</dd>
-                </div>
+                <li key={label}>
+                  <p className="font-mono text-2xl font-medium tabular-nums">{num}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{label}</p>
+                </li>
               ))}
-            </dl>
+            </ul>
           </div>
 
           {lead ? (
@@ -173,8 +176,7 @@ export default async function MarketingHome() {
                       src={templateImageUrl(t.reference_image_path)}
                       alt={`模板：${t.title}`}
                       loading="lazy"
-                      style={{ aspectRatio: `${t.recommended_width} / ${t.recommended_height}` }}
-                      className="w-full object-cover object-[50%_25%] transition duration-300 ease-out group-hover:scale-[1.02] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+                      className="aspect-[3/4] w-full object-cover object-[50%_25%] transition duration-300 ease-out group-hover:scale-[1.02] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
                     />
                     <span
                       aria-hidden

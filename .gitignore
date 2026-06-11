@@ -57,3 +57,6 @@ Thumbs.db
 .cache/
 .eslintcache
 .parcel-cache
+
+# Playwright MCP 调试产物
+.playwright-mcp/

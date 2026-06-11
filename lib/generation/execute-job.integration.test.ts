@@ -14,6 +14,11 @@ if (RUN) {
     const i = line.indexOf('=')
     if (i > 0) process.env[line.slice(0, i)] = line.slice(i + 1)
   }
+  // Hermetic: tests must never hit real providers (real cost + >5s latency).
+  // Strip provider keys so resolveProvider falls back to mock regardless of
+  // what .env.local holds (delete, not '': empty string fails lib/env zod).
+  delete process.env.ARK_API_KEY
+  delete process.env.FAL_API_KEY
 }
 
 describe.skipIf(!RUN)('executeGenerationJob (integration · local supabase)', () => {
@@ -50,6 +55,33 @@ describe.skipIf(!RUN)('executeGenerationJob (integration · local supabase)', ()
 
     const { data: job } = await admin.from('generation_jobs').select('status, output').eq('id', jobId).single()
     expect(job!.status).toBe('succeeded')
+    const { count } = await admin.from('assets').select('id', { count: 'exact', head: true }).eq('job_id', jobId)
+    expect(count).toBe(1)
+  })
+
+  test('t2i job (no template) → succeeded via input.prompt path (ADR-018)', async () => {
+    const { createTextToImageJob } = await import('./create-job')
+    const { jobId } = await createTextToImageJob({
+      userId,
+      modelId: 'doubao-seedream-5-lite',
+      prompt: '集成测试：黄昏屋顶上的橘猫',
+      negativePrompt: 'lowres',
+      seed: 42,
+      width: 2048,
+      height: 2048,
+    })
+    const res = await executeGenerationJob(jobId)
+    expect(res.status).toBe('succeeded')
+
+    const { data: job } = await admin
+      .from('generation_jobs')
+      .select('status, template_id, input')
+      .eq('id', jobId)
+      .single()
+    expect(job!.status).toBe('succeeded')
+    expect(job!.template_id).toBeNull()
+    // The user-authored prompt IS persisted (user content — unlike template recipes).
+    expect((job!.input as { prompt: string }).prompt).toContain('橘猫')
     const { count } = await admin.from('assets').select('id', { count: 'exact', head: true }).eq('job_id', jobId)
     expect(count).toBe(1)
   })

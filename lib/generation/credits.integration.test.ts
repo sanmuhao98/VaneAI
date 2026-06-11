@@ -11,11 +11,16 @@ if (RUN) {
     const i = line.indexOf('=')
     if (i > 0) process.env[line.slice(0, i)] = line.slice(i + 1)
   }
+  // Hermetic: strip provider keys so resolveProvider falls back to mock —
+  // jobs record provider='mock' and never count toward the dev call budget.
+  delete process.env.ARK_API_KEY
+  delete process.env.FAL_API_KEY
 }
 
 describe.skipIf(!RUN)('credits + quota (integration · local supabase)', () => {
   let admin: SupabaseClient
   let createGenerationJob: typeof import('./create-job').createGenerationJob
+  let createTextToImageJob: typeof import('./create-job').createTextToImageJob
   let refundFailedJob: typeof import('./refund').refundFailedJob
   let errors: typeof import('./errors')
   let userId: string
@@ -27,7 +32,7 @@ describe.skipIf(!RUN)('credits + quota (integration · local supabase)', () => {
   }
 
   beforeAll(async () => {
-    ;({ createGenerationJob } = await import('./create-job'))
+    ;({ createGenerationJob, createTextToImageJob } = await import('./create-job'))
     ;({ refundFailedJob } = await import('./refund'))
     errors = await import('./errors')
     admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
@@ -104,5 +109,32 @@ describe.skipIf(!RUN)('credits + quota (integration · local supabase)', () => {
     const second = await refundFailedJob(jobId)
     expect(second.refunded).toBe(false) // already refunded — unique index backstop
     expect(await balance()).toBe(afterCharge + 1)
+  })
+
+  test('t2i job (ADR-018) debits via create_t2i_generation_job with same ledger semantics', async () => {
+    const before = await balance()
+    const { jobId } = await createTextToImageJob({
+      userId,
+      modelId: 'doubao-seedream-5-lite',
+      prompt: '集成测试：一只在屋顶看夕阳的橘猫',
+      width: 2048,
+      height: 2048,
+    })
+    expect(await balance()).toBe(before - 1)
+
+    const { data: charge } = await admin
+      .from('credit_ledger')
+      .select('delta, reason')
+      .eq('ref_job_id', jobId)
+      .single()
+    expect(charge).toEqual({ delta: -1, reason: 'generation_charge' })
+  })
+
+  test('t2i with unknown model → ModelNotFoundError, nothing debited', async () => {
+    const before = await balance()
+    await expect(
+      createTextToImageJob({ userId, modelId: 'no-such-model', prompt: '测试', width: 2048, height: 2048 }),
+    ).rejects.toBeInstanceOf(errors.ModelNotFoundError)
+    expect(await balance()).toBe(before)
   })
 })

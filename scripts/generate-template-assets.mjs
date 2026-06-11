@@ -6,7 +6,7 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createClient } from '@supabase/supabase-js'
-import { MODEL_ROW_ID, NEGATIVE_PROMPT, TEMPLATES } from './template-catalog.mjs'
+import { MODEL_ROW_ID, NEGATIVE_PROMPT, TEMPLATES, templateSize } from './template-catalog.mjs'
 
 const FORCE = process.argv.includes('--force')
 const onlyArg = process.argv.find((a) => a.startsWith('--only'))
@@ -31,7 +31,7 @@ function assemblePrompt(basePrompt, keyword) {
   return basePrompt.includes('{subject}') ? basePrompt.replaceAll('{subject}', keyword) : `${basePrompt}, ${keyword}`
 }
 
-async function arkGenerate(prompt, attempt = 1) {
+async function arkGenerate(prompt, size, attempt = 1) {
   const res = await fetch('https://ark.cn-beijing.volces.com/api/v3/images/generations', {
     method: 'POST',
     signal: AbortSignal.timeout(90_000),
@@ -39,7 +39,7 @@ async function arkGenerate(prompt, attempt = 1) {
     body: JSON.stringify({
       model: 'doubao-seedream-5-0-lite-260128',
       prompt,
-      size: '2048x2048',
+      size,
       sequential_image_generation: 'disabled',
       response_format: 'url',
       watermark: true,
@@ -49,7 +49,7 @@ async function arkGenerate(prompt, attempt = 1) {
     const body = await res.text()
     if (attempt < 3 && (res.status === 429 || res.status >= 500)) {
       await new Promise((r) => setTimeout(r, 3000 * attempt))
-      return arkGenerate(prompt, attempt + 1)
+      return arkGenerate(prompt, size, attempt + 1)
     }
     throw new Error(`ark ${res.status}: ${body.slice(0, 200)}`)
   }
@@ -82,17 +82,18 @@ async function uploadToBucket(localPath, bucketPath) {
 async function processTemplate(t, index) {
   const refPath = `${OUT_DIR}/${t.slug}.jpg`
   const samplePath = `${OUT_DIR}/${t.slug}-sample.jpg`
+  const dims = templateSize(t)
 
   if (FORCE || !existsSync(refPath)) {
-    const url = await arkGenerate(assemblePrompt(t.base_prompt, t.refSubject))
+    const url = await arkGenerate(assemblePrompt(t.base_prompt, t.refSubject), dims.size)
     await downloadResize(url, refPath, 1024)
-    console.log(`  ✓ ref    ${t.slug} (${t.refSubject})`)
+    console.log(`  ✓ ref    ${t.slug} (${t.refSubject}, ${dims.size})`)
   } else {
     console.log(`  ↷ ref    ${t.slug} 已存在，跳过生成`)
   }
 
   if (FORCE || !existsSync(samplePath)) {
-    const url = await arkGenerate(assemblePrompt(t.base_prompt, t.sampleSubject))
+    const url = await arkGenerate(assemblePrompt(t.base_prompt, t.sampleSubject), dims.size)
     await downloadResize(url, samplePath, 640)
     console.log(`  ✓ sample ${t.slug} (${t.sampleSubject})`)
   } else {
@@ -112,8 +113,8 @@ async function processTemplate(t, index) {
       base_prompt: t.base_prompt,
       negative_prompt: NEGATIVE_PROMPT,
       model_id: MODEL_ROW_ID,
-      recommended_width: 2048,
-      recommended_height: 2048,
+      recommended_width: dims.width,
+      recommended_height: dims.height,
       credits_cost: 1,
       keyword_placeholder: t.placeholder,
       is_active: true,
@@ -130,7 +131,8 @@ function sqlEscape(s) {
 }
 function regenerateSeedSection() {
   const rows = TEMPLATES.map((t, i) => {
-    return `  ('${t.slug}', '${sqlEscape(t.title)}', '${t.theme}', '${t.slug}.jpg', array['${t.slug}-sample.jpg'],\n   '${sqlEscape(t.base_prompt)}',\n   '${sqlEscape(NEGATIVE_PROMPT)}',\n   '${MODEL_ROW_ID}', 2048, 2048, 1, '${sqlEscape(t.placeholder)}', ${i})`
+    const dims = templateSize(t)
+    return `  ('${t.slug}', '${sqlEscape(t.title)}', '${t.theme}', '${t.slug}.jpg', array['${t.slug}-sample.jpg'],\n   '${sqlEscape(t.base_prompt)}',\n   '${sqlEscape(NEGATIVE_PROMPT)}',\n   '${MODEL_ROW_ID}', ${dims.width}, ${dims.height}, 1, '${sqlEscape(t.placeholder)}', ${i})`
   }).join(',\n')
   const section = `-- BEGIN generated templates (scripts/generate-template-assets.mjs — 手改会被覆盖)
 insert into public.templates

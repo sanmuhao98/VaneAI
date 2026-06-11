@@ -171,3 +171,11 @@ export const TEMPLATES = [
 
 export const NEGATIVE_PROMPT = NEG
 export const MODEL_ROW_ID = 'doubao-seedream-5-lite'
+
+// 比例桶（设计系统 v2 编辑网格）：游戏角色用竖版 3:4（官方 2K 预设），盲盒保持 1:1。
+// size 给 Ark API；width/height 写入 templates.recommended_*，前端据此分桶排版。
+export function templateSize(t) {
+  return t.theme === 'game_character'
+    ? { size: '1728x2304', width: 1728, height: 2304 }
+    : { size: '2048x2048', width: 2048, height: 2048 }
+}

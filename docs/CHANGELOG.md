@@ -1,5 +1,19 @@
 # 文档变更日志
 
+## 2026-06-11 · 设计系统 v3「头条日报」落地 + 模板素材竖版化
+
+**产出**：
+- ✅ `docs/10-design-system.md` v3：暖纸光面为默认（`:root` 即浅色），暗厅暖碳收窄为生成工作台专用（`.dark` 按面开启）；朱红 `#BE3009 / #FF4118` 只用于生成动作与状态（全站红线）
+- ✅ `app/globals.css` token 全量重写；衬线标题层（Noto Serif SC）+ Geist/Noto Sans 正文 + 等宽数据层
+- ✅ shadcn 原语接入并重调（`components/ui/` 18 个，只取无障碍行为，token 全换）；`components.json` + shadcn MCP（`.mcp.json`）
+- ✅ 壳层重做 `components/layout/`：衬线词标 + 文字导航（2px 下划线活动态）+ 积分读数 + 「开始创作」唯一常驻品牌色入口；favicon 换 `app/icon.png` + `public/brand/`
+- ✅ 模板库重做：比例桶编辑网格 + 头版位 + 悬停浮现信息层卡片（`components/studio/template-card.tsx`）+ 排序（`sort-select.tsx`）+ 路由级骨架 `loading.tsx`
+- ✅ 模板素材竖版化：游戏角色 16 模板改 3:4（1728×2304 官方 2K 档）重新生成，盲盒保持 1:1；`templateSize()` 比例桶进目录脚本 + seed 重写；模板 JPG 全量重导出（仓库体积下降约 1/3）
+
+**对应 roadmap**：W5「设计走查」——`/templates` 完成；`/library` 与落地页待走查。
+
+---
+
 ## 2026-06-10 · W5 启动 · 首批 32 模板铺设（素材全 Seedream 生成）
 
 **产出**：

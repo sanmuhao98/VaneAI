@@ -95,8 +95,8 @@ W7+ 视频方向(V2)
 任务：
 - [x] 首批 32 个模板铺设（双主题各 16，素材全部 Seedream 生成；目录 `scripts/template-catalog.mjs`，重生成 `scripts/generate-template-assets.mjs`）
 - [ ] 设计走查：`/create` 与 `/library` 不能像默认模板（参考 design-quality 规范）
-- [ ] 落地页（`(marketing)/page.tsx`）
-- [ ] 服务条款 / 隐私政策静态页
+- [x] 落地页（`(marketing)/page.tsx`——「头条日报」头版式，真模板素材自荐）
+- [x] 服务条款 / 隐私政策静态页（`/terms` `/privacy`，营销壳层共用版面）
 - [ ] 邀请码或邀请链接（控制内测人数）
 - [ ] 加 1–2 个高质量模型（flux-pro 或同类）
 - [ ] 跨浏览器测试（Chrome / Safari / Firefox）

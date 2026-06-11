@@ -1,5 +1,17 @@
 # 文档变更日志
 
+## 2026-06-11 · W5 · 落地页「头条日报」头版 + 服务条款/隐私静态页
+
+**产出**：
+- ✅ `(marketing)/layout.tsx` 营销壳层：日期线顶栏（mono 刊号 + 登录）+ 报尾双线页脚（版面/刊例导航 + AI 标识合规提示）
+- ✅ `(marketing)/page.tsx` 落地页 = 字面意义的报纸头版：衬线报头 + 朱红报头线（§1 允许位）→ 头版（首字下沉 lede + 朱红「开始创作」唯一生成 CTA + mono 数据条）+ 头版图（真模板素材 + 图注）→ 三栏「本期看点」→「作品选登」六图带编号图注 → 收版 CTA
+- ✅ 数据通路：admin client 读 `templates_public` 安全视图（不含 base_prompt，ADR-016 不受影响），`revalidate=3600` 静态再生；图片走 public bucket URL
+- ✅ `/terms` `/privacy`：共用 `LegalArticle` 刊物版式（serif 标题 + mono 修订线 + 编号小节）；内容覆盖积分虚拟权益、AI 生成内容标识合规、第三方处理者（Supabase/Vercel/方舟）、软删 7 天清除
+- ✅ `--animate-rise` 进场 token（§7 缓动，reduced-motion 全局归零）
+- 走查：1440 / 390 截图核对通过；`/` `/terms` `/privacy` 未登录 200
+
+---
+
 ## 2026-06-11 · ADR-018 · 文生图创作工作台 `/create`（scope 新增）
 
 **触发**：产品决策——在模板复刻之外开放自由文生图，两通路共享积分/配额/回补体系。

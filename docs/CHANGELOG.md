@@ -1,5 +1,18 @@
 # 文档变更日志
 
+## 2026-06-15 · W4 收尾 · Sentry 错误监控接入（ADR-013）
+
+**触发**：用户提供 Sentry DSN，补齐 W4 唯一遗留项。
+
+**产出**：
+- ✅ `@sentry/nextjs@10` 接入：`instrumentation.ts`（`register()` 按 runtime 装载 server/edge config + `onRequestError`）+ `instrumentation-client.ts`（浏览器 init）+ `sentry.server/edge.config.ts` + `app/global-error.tsx`（顶层渲染兜底）
+- ✅ **最小集成**：仅错误监控（`tracesSampleRate: 0`，ADR-013 不上 OTel）；**不接 `withSentryConfig`/不传 source map**——规避 Next 16 + Turbopack 打包插件风险，`onRequestError` 是 Next 原生 hook 不依赖它；`@sentry/cli` 构建脚本在 pnpm-workspace 置 `false`（不需 source-map 上传）
+- ✅ **核心价值**：`executeGenerationJob` catch 内 `Sentry.captureException(err, { tags: { jobId, code, kind } })`——worker 吞掉的原始 provider 报错（job.error 落库脱敏）送 Sentry，按 jobId 检索（落实 W4「原始报错在服务端日志按 jobId 检索」的纪律）
+- ✅ env：`SENTRY_DSN`（服务端）+ `NEXT_PUBLIC_SENTRY_DSN`（前端）双填同一 DSN；空则 SDK no-op。`lib/env.ts` 两 schema 加校验；`.env.example` 注明
+- 验证：typecheck/lint/47 单测全绿；本地临时置无效 ARK key 触发真 provider 失败 → debug 日志确认 `Captured error event` 并向 DSN flush 无投递错误（DSN 有效可达）。**生产需在 Vercel 配两个 DSN 变量**
+
+---
+
 ## 2026-06-15 · W5 推进 · 关键指标埋点（ADR-020）+ /library 设计走查 + 响应式自检 + 失败积分回补修复
 
 **触发**：本地全栈走查（Supabase + Inngest dev + 真实 Seedream）暴露问题并补 W5 剩余项。

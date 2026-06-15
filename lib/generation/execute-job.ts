@@ -1,6 +1,7 @@
 import 'server-only'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveProvider } from '@/lib/providers'
+import * as Sentry from '@sentry/nextjs'
 import { createSignedUrl, uploadGenerationImage } from '@/lib/storage/upload'
 import { track } from '@/lib/analytics/track'
 import { assemblePrompt } from './prompt'
@@ -159,6 +160,8 @@ export async function executeGenerationJob(jobId: string): Promise<ExecuteResult
   } catch (err) {
     console.error('[executeGenerationJob] failed', { jobId, err })
     const code = err instanceof ProviderError ? ('provider_error' as const) : ('internal_error' as const)
+    // job.error 落库是脱敏文案——原始报错送 Sentry，按 jobId 检索（ADR-013 + W4 纪律）。
+    Sentry.captureException(err, { tags: { jobId, code, kind }, extra: { userId } })
     await track('generation_failed', { userId, props: { kind, code } })
     try {
       await admin

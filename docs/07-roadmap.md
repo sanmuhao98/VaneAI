@@ -79,7 +79,7 @@ W7+ 视频方向(V2)
 - [x] 创建任务事务：扣积分 + 计配额 + 写 job（已实现为 `create_generation_job` RPC，migration 0009）
 - [x] `inngest/functions/refund-on-failure.ts`（幂等：唯一索引兜底）
 - [x] 前端：余额展示 + 配额展示 + 余额不足/配额耗尽明确提示（402/429）
-- [ ] Sentry 接入（前端 + Inngest function；admin 后台查失败原因依赖服务端日志里的原始错误——job 行只存脱敏文案）
+- [x] Sentry 接入（ADR-013：`@sentry/nextjs` 前端 + 服务端 + edge init；worker catch `captureException` 带 jobId/code tag——脱敏 job.error 之外的原始报错按 jobId 在 Sentry 检索。仅错误、不上性能；本地实测真错误已上报）
 - [x] 错误统一封装 + 用户可读文案（job.error 落库即脱敏）
 - [x] Admin 路由 + 白名单守卫（ADMIN_EMAILS，layout/API 双层）
 - [x] Admin 任务列表（状态筛选 + 错误码）+ 用户列表 + 手动加积分（走 ledger）

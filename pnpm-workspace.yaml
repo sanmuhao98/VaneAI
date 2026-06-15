@@ -5,7 +5,9 @@ onlyBuiltDependencies:
 ignoredBuiltDependencies:
   - msw
   - protobufjs
+  - '@sentry/cli'
 allowBuilds:
+  '@sentry/cli': false
   esbuild: true
   msw: true
   protobufjs: false

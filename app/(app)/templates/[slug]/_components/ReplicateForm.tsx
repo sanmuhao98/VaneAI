@@ -1,7 +1,9 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { withDownloadParam } from '@/lib/storage/download-url'
+import { Button } from '@/components/ui/button'
 
 type ResultAsset = { signedUrl: string; width: number | null; height: number | null }
 
@@ -28,6 +30,7 @@ export function ReplicateForm({
   placeholder?: string | null
   initialKeyword?: string
 }) {
+  const router = useRouter()
   const [keyword, setKeyword] = useState(initialKeyword ?? '')
   const [phase, setPhase] = useState<'idle' | 'working'>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -51,6 +54,8 @@ export function ReplicateForm({
       if (!res.ok || !body.data) throw new Error(body.error?.message ?? '创建任务失败，请重试')
       const jobId = body.data.job.id
       jobIdRef.current = jobId
+      // 创建即扣费——刷新 RSC，顶栏余额/配额读数立即同步。
+      router.refresh()
 
       const deadline = Date.now() + POLL_TIMEOUT_MS
       let consecutiveFailures = 0
@@ -76,7 +81,11 @@ export function ReplicateForm({
           shownAt.current = Date.now()
           return
         }
-        if (job.status === 'failed') throw new Error(job.error?.message ?? '生成失败，请重试')
+        if (job.status === 'failed') {
+          // 失败可能触发积分回补——刷新读数。
+          router.refresh()
+          throw new Error(job.error?.message ?? '生成失败，请重试')
+        }
         if (job.status === 'canceled') throw new Error('任务已取消')
       }
       throw new Error('生成超时——任务仍在后台运行，稍后可在作品库查看结果')
@@ -102,10 +111,18 @@ export function ReplicateForm({
   }
 
   function replicateAgain() {
-    // 60s retry instrumentation — success metric per docs/00-vision. W5 wires real analytics.
+    // 60s 内重试 = docs/00-vision「成功复刻」成功度量。上报到埋点 beacon（fire-and-forget）。
     if (shownAt.current) {
-      const elapsed = Date.now() - shownAt.current
-      console.info('[metric] replicate_again', { withinWindow: elapsed <= 60_000, elapsedMs: elapsed })
+      const elapsedMs = Date.now() - shownAt.current
+      void fetch('/api/v1/events', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          event: 'replicate_again',
+          props: { templateId, withinWindow: elapsedMs <= 60_000, elapsedMs },
+        }),
+        keepalive: true,
+      }).catch(() => {})
     }
     setAssets(null)
     setKeyword('')
@@ -117,22 +134,14 @@ export function ReplicateForm({
     return (
       <div className="flex flex-col gap-4">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={assets[0].signedUrl} alt="复刻结果" className="w-full rounded-xl border border-neutral-200" />
+        <img src={assets[0].signedUrl} alt="复刻结果" className="w-full rounded-xl border border-border" />
         <div className="flex gap-3">
-          <a
-            href={withDownloadParam(assets[0].signedUrl)}
-            download
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:opacity-90"
-          >
+          <Button nativeButton={false} render={<a href={withDownloadParam(assets[0].signedUrl)} download />}>
             下载图片
-          </a>
-          <button
-            type="button"
-            onClick={replicateAgain}
-            className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-100"
-          >
+          </Button>
+          <Button type="button" variant="outline" onClick={replicateAgain}>
             再次复刻
-          </button>
+          </Button>
         </div>
       </div>
     )
@@ -152,28 +161,20 @@ export function ReplicateForm({
         value={keyword}
         onChange={(e) => setKeyword(e.target.value)}
         placeholder={placeholder ?? '输入你想复刻的主体，例如：一只柴犬'}
-        className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400"
+        className="rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50"
       />
-      <p className="text-xs text-neutral-400">{keyword.length}/60</p>
+      <p className="font-mono text-xs text-muted-foreground tabular-nums">{keyword.length}/60</p>
       <div className="flex gap-3">
-        <button
-          type="submit"
-          disabled={phase === 'working'}
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-        >
+        <Button type="submit" variant="brand" disabled={phase === 'working'}>
           {phase === 'working' ? '生成中…' : '一键复刻'}
-        </button>
+        </Button>
         {phase === 'working' ? (
-          <button
-            type="button"
-            onClick={cancelGeneration}
-            className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-100"
-          >
+          <Button type="button" variant="outline" onClick={cancelGeneration}>
             取消
-          </button>
+          </Button>
         ) : null}
       </div>
-      {error ? <p className="text-sm text-red-500">{error}</p> : null}
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </form>
   )
 }

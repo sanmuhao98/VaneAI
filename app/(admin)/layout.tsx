@@ -28,6 +28,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <Link href="/admin/users" className="text-neutral-600 hover:text-neutral-900">
             用户
           </Link>
+          <Link href="/admin/events" className="text-neutral-600 hover:text-neutral-900">
+            埋点
+          </Link>
           <Link href="/dashboard" className="ml-auto text-neutral-400 hover:text-neutral-900">
             ← 返回应用
           </Link>

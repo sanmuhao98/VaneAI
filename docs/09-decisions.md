@@ -230,6 +230,18 @@
 
 ---
 
+## ADR-020 · 产品埋点落 Supabase 事件表（不引外部分析服务）
+
+- **决策**：关键指标埋点写入 `analytics_events`（`event` / `user_id` / `props jsonb` / `created_at`，无 RLS policy → service_role only，admin 直读）。服务端权威事件（`signup` 经 `handle_new_user` 触发器；`generation_created` / `generation_succeeded` / `generation_failed` / `generation_canceled` / `job_deleted` 经各 server 路径调 `track()`）+ 一个客户端 beacon 事件（`replicate_again`，`POST /api/v1/events` 仅收白名单）。`track()` 永不抛错、永不阻断主流程。「首次/N 次生成」按用户对 `generation_created` 计数派生，不单列字段。`/admin/events` 给计数总览 + 最近事件流。
+- **为什么**：
+  - 与 ADR-009「计数/配额都用 Postgres」一脉——不为 MVP 再引一个外部供应商（PostHog 等）与其配置/合规面
+  - admin 立即可查、可 SQL 聚合，直接满足 01-mvp-scope 验收 #10「后台埋点收齐」
+  - 事件表与 Sentry（ADR-013，错误监控）职责分离：前者产品行为，后者异常
+- **替代**：PostHog/Amplitude（漏斗/留存现成，但外部依赖 + key + 额外配置，W6 数据需要时再上）；只打服务端日志（不满足「后台可查」）。
+- **回滚**：停止 `track()` 调用即不再增长；表保留无害。Supersedes 无（新增能力）。
+
+---
+
 ## 决策记录格式（新增 ADR 时复用）
 
 ```markdown

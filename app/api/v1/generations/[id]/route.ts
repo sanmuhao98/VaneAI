@@ -2,6 +2,7 @@ import { apiFail, apiOk } from '@/lib/api/response'
 import { getAuthUser } from '@/lib/api/auth'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { track } from '@/lib/analytics/track'
 import { toJobView, type JobViewRow } from '@/lib/generation/job-view'
 
 // Poll target (ADR-005). Reads go through the USER client so RLS enforces
@@ -71,5 +72,6 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     console.error('[generations:delete] failed', error)
     return apiFail('internal_error', '删除失败，请重试', 500)
   }
+  await track('job_deleted', { userId: user.id, props: { jobId: id } })
   return apiOk({ id })
 }

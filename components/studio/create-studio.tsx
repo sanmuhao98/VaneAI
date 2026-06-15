@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { ChevronDown, Dices, Download, RotateCcw, Settings2, X } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -103,6 +104,7 @@ function elapsedLabel(from: number, to?: number) {
 /* ── 工作台 ───────────────────────────────────────────── */
 
 export function CreateStudio({ models, balance }: { models: ModelOption[]; balance: number }) {
+  const router = useRouter()
   const [prompt, setPrompt] = useState('')
   const [negativePrompt, setNegativePrompt] = useState('')
   const [seed, setSeed] = useState('')
@@ -132,6 +134,7 @@ export function CreateStudio({ models, balance }: { models: ModelOption[]; balan
     let stopped = false
     const tick = async () => {
       const active = jobs.filter((j) => ACTIVE.has(j.status))
+      let terminal = false
       await Promise.all(
         active.map(async (j) => {
           try {
@@ -140,6 +143,7 @@ export function CreateStudio({ models, balance }: { models: ModelOption[]; balan
             if (!res.ok || !body.data) return // 瞬时失败：下一轮再试
             const { job, assets } = body.data
             if (stopped) return
+            if (job.status === 'succeeded' || job.status === 'failed' || job.status === 'canceled') terminal = true
             setJobs((prev) =>
               prev.map((p) => {
                 if (p.id !== j.id) return p
@@ -163,13 +167,15 @@ export function CreateStudio({ models, balance }: { models: ModelOption[]; balan
           }
         }),
       )
+      // 任务落终态时刷新 RSC——顶栏积分/配额读数随退款/最终态同步。
+      if (terminal && !stopped) router.refresh()
     }
     const t = setInterval(tick, POLL_INTERVAL_MS)
     return () => {
       stopped = true
       clearInterval(t)
     }
-  }, [hasActive, jobs])
+  }, [hasActive, jobs, router])
 
   const submit = useCallback(
     async (params: ParamsSnapshot) => {
@@ -193,13 +199,15 @@ export function CreateStudio({ models, balance }: { models: ModelOption[]; balan
           params,
         }
         setJobs((prev) => [job, ...prev])
+        // 创建即扣费——立即刷新 RSC，顶栏余额/配额读数同步扣减。
+        router.refresh()
       } catch (err) {
         setFormError(err instanceof Error ? err.message : '创建任务失败，请重试')
       } finally {
         setSubmitting(false)
       }
     },
-    [],
+    [router],
   )
 
   function onGenerate(e: React.FormEvent) {

@@ -94,14 +94,14 @@ W7+ 视频方向(V2)
 
 任务：
 - [x] 首批 32 个模板铺设（双主题各 16，素材全部 Seedream 生成；目录 `scripts/template-catalog.mjs`，重生成 `scripts/generate-template-assets.mjs`）
-- [ ] 设计走查：`/create` 与 `/library` 不能像默认模板（参考 design-quality 规范）
+- [x] 设计走查：`/create`（生成按钮品牌红）与 `/library`（列表+详情+JobActions 全量迁 v3 token，镜像模板库简讯卡/空状态）不再像默认模板
 - [x] 落地页（`(marketing)/page.tsx`——「头条日报」头版式，真模板素材自荐）
 - [x] 服务条款 / 隐私政策静态页（`/terms` `/privacy`，营销壳层共用版面）
 - [x] 邀请码或邀请链接（控制内测人数）——激活门 + 多次使用码（ADR-019，`INVITE_GATE` 开关）
-- [ ] 加 1–2 个高质量模型（flux-pro 或同类）
-- [ ] 跨浏览器测试（Chrome / Safari / Firefox）
-- [ ] 响应式自检（320 / 768 / 1024 / 1440）
-- [ ] 关键指标埋点：注册、首次生成、N 次生成、失败、取消、删除
+- [ ] 加 1–2 个高质量模型（flux-pro 或同类）——卡在方舟控制台真实 Model ID（`models` 表加行即可，零代码）
+- [ ] 跨浏览器测试（Chrome / Safari / Firefox）——Chromium 已过；Safari/Firefox 待真机
+- [x] 响应式自检（320 / 768 / 1024 / 1440）——落地页/模板库/详情/`/create`/`/library` 逐页核对通过
+- [x] 关键指标埋点：注册、首次生成、N 次生成、失败、取消、删除（ADR-020，`analytics_events` 表 + `/admin/events` 总览；首次/N 次按用户对 `generation_created` 计数即得）
 - [ ] 修内测反馈关键 bug
 
 **验收**：≥5 个用户完成至少 3 次生成；NPS 收集；P95 出图 ≤60s。

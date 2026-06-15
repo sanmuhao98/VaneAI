@@ -1,5 +1,6 @@
 import 'server-only'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { ANALYTICS_EVENTS } from '@/lib/analytics/events'
 
 // Admin-only cross-user queries. Callers MUST be guarded by getAdminUser() /
 // the (admin) layout — these run on the service_role client with no RLS.
@@ -101,4 +102,44 @@ export async function listUsers(opts: { page?: number; perPage?: number } = {}):
     page,
     hasMore: authUsers.length === perPage,
   }
+}
+
+// 埋点总览：每个事件名的累计计数（exact head count，逐事件一条小查询）。
+export async function eventCounts(): Promise<{ event: string; count: number }[]> {
+  const admin = createAdminClient()
+  return Promise.all(
+    ANALYTICS_EVENTS.map(async (event) => {
+      const { count } = await admin
+        .from('analytics_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('event', event)
+      return { event, count: count ?? 0 }
+    }),
+  )
+}
+
+export type AdminEventRow = {
+  id: string
+  event: string
+  userId: string | null
+  props: Record<string, unknown>
+  createdAt: string
+}
+
+// 最近埋点事件（倒序）。仅 admin 直读——analytics_events 无 RLS policy，service_role only。
+export async function listRecentEvents(limit = 100): Promise<AdminEventRow[]> {
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('analytics_events')
+    .select('id, event, user_id, props, created_at')
+    .order('created_at', { ascending: false })
+    .limit(Math.min(Math.max(limit, 1), 200))
+  if (error) throw error
+  return (data ?? []).map((r) => ({
+    id: r.id as string,
+    event: r.event as string,
+    userId: (r.user_id as string | null) ?? null,
+    props: (r.props as Record<string, unknown>) ?? {},
+    createdAt: r.created_at as string,
+  }))
 }

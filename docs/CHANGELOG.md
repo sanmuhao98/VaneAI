@@ -1,5 +1,21 @@
 # 文档变更日志
 
+## 2026-06-15 · W5 推进 · 关键指标埋点（ADR-020）+ /library 设计走查 + 响应式自检 + 失败积分回补修复
+
+**触发**：本地全栈走查（Supabase + Inngest dev + 真实 Seedream）暴露问题并补 W5 剩余项。
+
+**产出**：
+- ✅ **失败积分回补修复**：`POST /generations` 在 `inngest.send` 失败路径只标 job `failed`、绕过 `generation/failed` 事件 → 退款链路（事件 + sweep cron 均依赖 Inngest）永不触发，积分悬挂。catch 内补幂等 `refundFailedJob`（`uq_ledger_refund_once` 防重）。停 Inngest 复现 → 余额稳定（`-1 charge` 当即 `+1 refund`）
+- ✅ **关键指标埋点（ADR-020）**：migration 0012 `analytics_events`（service_role only）+ `handle_new_user` 触发器追加 `signup`（覆盖 Magic Link/OAuth）；`lib/analytics/`（`track()` 永不抛错 + 事件白名单 + 4 单测）；服务端埋点（created/succeeded/failed/canceled/deleted）+ 客户端 beacon `POST /api/v1/events`（接 `再次复刻` 60s 度量）；`/admin/events` 计数总览 + 最近事件流
+- ✅ **`/library` 设计走查**：列表 + 详情 + `JobActions` 从遗留 `neutral-*` 硬编码色全量迁 v3 token，镜像模板库（衬线刊头 + 朱红「去复刻」+ 下划线筛选页签 + 发丝线简讯卡 + 编辑式空状态 + 内嵌环图 + mono 规格表）；文生图作品标题落「自由创作」
+- ✅ **走查修正（上一轮）**：`一键复刻` 改品牌朱红 + `ReplicateForm` 迁 shadcn Button/v3 token；顶栏积分/配额读数生成后 `router.refresh()` 实时刷新（模板页 + 工作台）；`/dashboard` 骨架页改重定向 `/templates`（登出/Admin/导航顶栏已全有）
+- ✅ **响应式自检**：320/768/1024/1440 逐页核对通过（落地页/模板库/详情/`/create`/`/library`），无需修复
+- 验证：typecheck / lint / 47 单测全绿；浏览器 e2e 复刻+文生图真出图（P95 ≤60s）、埋点事件入库与 admin 渲染核对正确
+
+**W5 剩余（外部依赖）**：加高质量模型（待方舟控制台 Model ID）、跨浏览器 Safari/Firefox（待真机）、Sentry（待 DSN）、内测反馈 bug（待真实用户）。
+
+---
+
 ## 2026-06-11 · ADR-019 · 内测邀请激活门（W5 放人门槛闭环）
 
 **决策**（已与产品确认）：激活门而非注册门（OAuth 兼容）/ 多次使用码 / 暂不做 admin 管理 UI。设计：[specs/2026-06-11-invite-gate-design.md](./superpowers/specs/2026-06-11-invite-gate-design.md)。

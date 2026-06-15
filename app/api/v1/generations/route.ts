@@ -5,6 +5,8 @@ import { getAuthUser } from '@/lib/api/auth'
 import { generationCreated, inngest } from '@/inngest/client'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createGenerationJob, createTextToImageJob } from '@/lib/generation/create-job'
+import { refundFailedJob } from '@/lib/generation/refund'
+import { track } from '@/lib/analytics/track'
 import { listJobs } from '@/lib/generation/list-jobs'
 import { mapSeedreamSize } from '@/lib/providers/seedream-size'
 import {
@@ -75,6 +77,10 @@ export async function POST(request: NextRequest) {
     return apiFail('validation_error', parsed.error.issues[0]?.message ?? '参数无效', 400)
   }
 
+  const kind = 'templateId' in parsed.data ? 'template' : 'text_to_image'
+  const createdProps: Record<string, unknown> =
+    'templateId' in parsed.data ? { kind, templateId: parsed.data.templateId } : { kind, modelId: parsed.data.modelId }
+
   let jobId: string
   try {
     if ('templateId' in parsed.data) {
@@ -112,11 +118,19 @@ export async function POST(request: NextRequest) {
           finished_at: new Date().toISOString(),
         })
         .eq('id', jobId)
+      // Refund directly: the normal refund path is the generation/failed Inngest
+      // event, but we are here precisely because Inngest is unreachable — and the
+      // job is now `failed`, so sweep-stale won't touch it either. refundFailedJob
+      // is idempotent (uq_ledger_refund_once), so a later retry can't double-refund.
+      await refundFailedJob(jobId)
     } catch (updateErr) {
-      console.error('[generations] failed to mark stranded job failed', { jobId, updateErr })
+      console.error('[generations] failed to mark/refund stranded job', { jobId, updateErr })
     }
+    await track('generation_failed', { userId: user.id, props: { ...createdProps, reason: 'dispatch_failed' } })
     return apiFail('internal_error', '创建任务失败，请重试', 500, { jobId })
   }
+
+  await track('generation_created', { userId: user.id, props: createdProps })
 
   return apiOk({ job: { id: jobId, status: 'pending' } }, 202)
 }

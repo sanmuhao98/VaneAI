@@ -2,6 +2,7 @@ import 'server-only'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveProvider } from '@/lib/providers'
 import { createSignedUrl, uploadGenerationImage } from '@/lib/storage/upload'
+import { track } from '@/lib/analytics/track'
 import { assemblePrompt } from './prompt'
 import { ProviderError } from './errors'
 
@@ -23,6 +24,9 @@ const SANITIZED_ERROR_MESSAGES = {
 // transition is conditional, and every terminal write refuses to overwrite `canceled`.
 export async function executeGenerationJob(jobId: string): Promise<ExecuteResult> {
   const admin = createAdminClient()
+  // Hoisted for the catch block's analytics — the job row is fetched inside try.
+  let userId: string | null = null
+  let kind: 'template' | 'text_to_image' = 'text_to_image'
 
   try {
     const { data: job, error: jErr } = await admin
@@ -34,6 +38,8 @@ export async function executeGenerationJob(jobId: string): Promise<ExecuteResult
     if (!job) throw new Error(`job not found: ${jobId}`)
     // Idempotency + cancel: only a pending job may start.
     if (job.status !== 'pending') return { status: 'skipped', reason: `status=${job.status}` }
+    userId = job.user_id as string
+    kind = job.template_id ? 'template' : 'text_to_image'
 
     const input = job.input as {
       keyword?: string
@@ -144,11 +150,16 @@ export async function executeGenerationJob(jobId: string): Promise<ExecuteResult
       return { status: 'skipped', reason: 'canceled mid-flight' }
     }
 
+    await track('generation_succeeded', {
+      userId: job.user_id as string,
+      props: { kind, templateId: job.template_id, provider: job.provider, assetCount: assets.length },
+    })
     // No signed URLs in the return value — it persists in Inngest run state.
     return { status: 'succeeded', assetCount: assets.length }
   } catch (err) {
     console.error('[executeGenerationJob] failed', { jobId, err })
     const code = err instanceof ProviderError ? ('provider_error' as const) : ('internal_error' as const)
+    await track('generation_failed', { userId, props: { kind, code } })
     try {
       await admin
         .from('generation_jobs')

@@ -2,6 +2,7 @@ import { apiFail, apiOk } from '@/lib/api/response'
 import { getAuthUser } from '@/lib/api/auth'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { track } from '@/lib/analytics/track'
 import { canCancel, type JobStatus } from '@/lib/generation/status'
 
 // Best-effort cancel (docs/05): only pending/running. Credits are NOT auto-refunded.
@@ -26,5 +27,6 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     console.error('[generations:cancel] failed', error)
     return apiFail('internal_error', '取消失败，请重试', 500)
   }
+  await track('generation_canceled', { userId: user.id, props: { jobId: id } })
   return apiOk({ id, status: 'canceled' })
 }

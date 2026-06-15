@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { canCancel, canRetry, type JobStatus } from '@/lib/generation/status'
+import { Button } from '@/components/ui/button'
 
 type Envelope<T> = { data: T | null; error: { code: string; message: string } | null }
 
@@ -47,35 +48,20 @@ export function JobActions({ jobId, status }: { jobId: string; status: JobStatus
     <div className="flex flex-col gap-2">
       <div className="flex gap-3">
         {canCancel(status) ? (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onCancel}
-            className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-100 disabled:opacity-50"
-          >
+          <Button type="button" variant="outline" disabled={busy} onClick={onCancel}>
             取消任务
-          </button>
+          </Button>
         ) : null}
         {canRetry(status) ? (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onRetry}
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-          >
+          <Button type="button" variant="brand" disabled={busy} onClick={onRetry}>
             重试
-          </button>
+          </Button>
         ) : null}
-        <button
-          type="button"
-          disabled={busy}
-          onClick={onDelete}
-          className="rounded-md border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
-        >
+        <Button type="button" variant="destructive" disabled={busy} onClick={onDelete}>
           删除
-        </button>
+        </Button>
       </div>
-      {error ? <p className="text-sm text-red-500">{error}</p> : null}
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </div>
   )
 }
